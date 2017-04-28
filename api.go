@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	_ "log"
 	"net/http"
 )
 
@@ -87,10 +88,17 @@ func (t *TelegramBotApi) GetMe() (*User, error) {
 	}
 }
 
-func (t *TelegramBotApi) GetUpdates(offset, limit, timeout int, allowed_updates []string) ([]Update, error) {
-	//  TODO: support for offset, limit and timeout
+func (t *TelegramBotApi) GetUpdates(offset, limit, timeout int, allowedUpdates []string) ([]Update, error) {
+	content := new(bytes.Buffer)
+	encoder := json.NewEncoder(content)
+	params := &getUpdates{offset, limit, timeout, allowedUpdates}
+
+	if err := encoder.Encode(params); err != nil {
+		return nil, err
+	}
+
 	url := "https://api.telegram.org/bot" + t.token + "/getUpdates"
-	res, err := http.Post(url, "application/json", nil)
+	res, err := http.Post(url, "application/json", content)
 
 	if err != nil {
 		return nil, err
@@ -106,6 +114,13 @@ func (t *TelegramBotApi) GetUpdates(offset, limit, timeout int, allowed_updates 
 	}
 
 	return body.Result, nil
+}
+
+type getUpdates struct {
+	Offset         int      `json:"offset"`
+	Limit          int      `json:"limit"`
+	Timeout        int      `json:"timeout"`
+	AllowedUpdates []string `json:"allowed_updates,omitempty"`
 }
 
 type SendMessage struct {
