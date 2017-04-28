@@ -7,7 +7,8 @@ import (
 	"strconv"
 )
 
-var bucketName []byte = []byte("credentials")
+var indexName []byte = []byte("index")        // index token -> user
+var revIndexName []byte = []byte("rev-index") // inverted index user -> token
 
 // list of keys
 var id []byte = []byte("Id")
@@ -26,23 +27,25 @@ func NewStorage(path string) (*Storage, error) {
 		return nil, err
 	}
 
-	tx, err := db.Begin(true)
+	// create index and inverse index on start up
+	err = db.Update(func(tx *bolt.Tx) error {
+		if _, err := tx.CreateBucketIfNotExists(indexName); err != nil {
+			return err
+		}
+
+		if _, err := tx.CreateBucketIfNotExists(revIndexName); err != nil {
+			return err
+		}
+
+        return nil
+	})
 
 	if err != nil {
 		db.Close()
 		return nil, err
+	} else {
+		return &Storage{db}, nil
 	}
-
-	defer tx.Rollback()
-
-	if _, err := tx.CreateBucketIfNotExists(bucketName); err != nil {
-		db.Close()
-		return nil, err
-	}
-
-	tx.Commit()
-
-	return &Storage{db}, nil
 }
 
 func (s *Storage) Close() {
@@ -58,8 +61,9 @@ func (s *Storage) InsertUser(user *User) (string, error) {
 		//  TODO: generate uniq token(uuid?)
 		token = "test-token"
 
-		credentials := tx.Bucket(bucketName)
-		bucket, err := credentials.CreateBucketIfNotExists([]byte(token))
+		//  insert user in token -> user index
+		index := tx.Bucket(indexName)
+		bucket, err := index.CreateBucketIfNotExists([]byte(token))
 
 		if err != nil {
 			return err
@@ -83,6 +87,13 @@ func (s *Storage) InsertUser(user *User) (string, error) {
 			return err
 		}
 
+		//  insert reference user -> token
+		revIndex := tx.Bucket(revIndexName)
+
+		if err := revIndex.Put([]byte(user_id), []byte(token)); err != nil {
+			return err
+		}
+
 		return nil
 	})
 	return token, err
@@ -91,8 +102,8 @@ func (s *Storage) InsertUser(user *User) (string, error) {
 func (s *Storage) SelectUserBy(token string) (*User, error) {
 	user := new(User)
 	err := s.db.View(func(tx *bolt.Tx) error {
-		credentials := tx.Bucket(bucketName)
-		bucket := credentials.Bucket([]byte(token))
+		index := tx.Bucket(indexName)
+		bucket := index.Bucket([]byte(token))
 
 		if bucket == nil {
 			user = nil
@@ -116,4 +127,20 @@ func (s *Storage) SelectUserBy(token string) (*User, error) {
 		return nil
 	})
 	return user, err
+}
+
+func (s *Storage) SelectTokenBy(user *User) (string, error) {
+	token := ""
+	err := s.db.View(func(tx *bolt.Tx) error {
+		user_id := strconv.Itoa(user.Id)
+		revIndex := tx.Bucket(revIndexName)
+
+		if value := revIndex.Get([]byte(user_id)); len(value) == 0 {
+			return errors.New("unknown user")
+		} else {
+			token = string(value)
+			return nil
+		}
+	})
+	return token, err
 }
