@@ -89,4 +89,4 @@ ENV/
 .ropeproject
 
 # Ignore target binary
-/telepyth
+/main
