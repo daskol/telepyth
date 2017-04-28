@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -60,6 +61,10 @@ func New(token string) *TelegramBotApi {
 	return &TelegramBotApi{token}
 }
 
+func (t *TelegramBotApi) GetToken() string {
+	return t.token
+}
+
 func (t *TelegramBotApi) GetMe() (*User, error) {
 	url := "https://api.telegram.org/bot" + t.token + "/getMe"
 	res, err := http.Post(url, "application/json", nil)
@@ -83,6 +88,7 @@ func (t *TelegramBotApi) GetMe() (*User, error) {
 }
 
 func (t *TelegramBotApi) GetUpdates(offset, limit, timeout int, allowed_updates []string) ([]Update, error) {
+	//  TODO: support for offset, limit and timeout
 	url := "https://api.telegram.org/bot" + t.token + "/getUpdates"
 	res, err := http.Post(url, "application/json", nil)
 
@@ -100,4 +106,36 @@ func (t *TelegramBotApi) GetUpdates(offset, limit, timeout int, allowed_updates 
 	}
 
 	return body.Result, nil
+}
+
+type SendMessage struct {
+	ChatId                int    `json:"chat_id"`
+	Text                  string `json:"text"`
+	ParseMode             string `json:"parse_mode,omitempty"`
+	DisableWebPagePreview bool   `json:"disable_web_page_preview,omitempty"`
+	DisableNotification   bool   `json:"disable_notification,omitempty"`
+}
+
+func (s *SendMessage) To(t *TelegramBotApi) error {
+	content := new(bytes.Buffer)
+	encoder := json.NewEncoder(content)
+
+	if err := encoder.Encode(s); err != nil {
+		return err
+	}
+
+	url := "https://api.telegram.org/bot" + t.token + "/sendMessage"
+	res, err := http.Post(url, "application/json", content)
+
+	if res != nil {
+		return err
+	}
+
+	//	log.Println(res)
+
+	return nil
+}
+
+func (t *TelegramBotApi) SendMessage(msg SendMessage) error {
+	return nil
 }
