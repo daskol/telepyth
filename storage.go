@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"github.com/boltdb/bolt"
-	"log"
+	"math/rand"
 	"strconv"
 )
 
@@ -15,6 +15,12 @@ var id []byte = []byte("Id")
 var firstName []byte = []byte("FirstName")
 var lastName []byte = []byte("LastName")
 var userName []byte = []byte("UserName")
+
+//  TODO: improve enthropy
+func GenToken() (string, error) {
+	token := strconv.FormatUint(rand.Uint64(), 10)
+	return token, nil
+}
 
 type Storage struct {
 	db *bolt.DB
@@ -37,7 +43,7 @@ func NewStorage(path string) (*Storage, error) {
 			return err
 		}
 
-        return nil
+		return nil
 	})
 
 	if err != nil {
@@ -54,15 +60,31 @@ func (s *Storage) Close() {
 	}
 }
 
+func (s *Storage) GenToken(bucket *bolt.Bucket) (string, error) {
+	for i := 0; i != 5; i += 1 {
+		if value, err := GenToken(); err != nil {
+			return "", err
+		} else if nested := bucket.Bucket([]byte(value)); nested == nil {
+			return value, nil
+		}
+	}
+
+	return "", errors.New("could no generate new unique token")
+}
+
 func (s *Storage) InsertUser(user *User) (string, error) {
 	token := ""
-	log.Println("bucket:", s)
 	err := s.db.Update(func(tx *bolt.Tx) error {
-		//  TODO: generate uniq token(uuid?)
-		token = "test-token"
+		//  generate new key
+		index := tx.Bucket(indexName)
+
+		if value, err := s.GenToken(index); err != nil {
+			return err
+		} else {
+			token = value
+		}
 
 		//  insert user in token -> user index
-		index := tx.Bucket(indexName)
 		bucket, err := index.CreateBucketIfNotExists([]byte(token))
 
 		if err != nil {
