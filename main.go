@@ -22,26 +22,71 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 	log.Println("updates:", update.Message.From)
 	log.Println("")
 
-	token, err := storage.InsertUser(&update.Message.From)
+	switch update.Message.Text {
+	case "/start":
+		token, err := storage.InsertUser(&update.Message.From)
 
-	if err != nil {
-		//  TODO: log error and ask try again
-		return
-	}
+		if err != nil {
+			//  TODO: log error and ask try again
+			log.Println(err)
+			return
+		}
 
-	if update.Message.Text == "/show" {
-		user, err := storage.SelectUserBy(token)
-		log.Println("user: ", user, err)
-		return
-	}
+		err = (&SendMessage{
+			ChatId:    update.Message.From.Id,
+			Text:      "Your access token is `" + token + "`.",
+			ParseMode: "Markdown",
+		}).To(t.api)
 
-	err = (&SendMessage{
-		ChatId: update.Message.From.Id,
-		Text:   "Your access token is " + token,
-	}).To(t.api)
+		if err != nil {
+			log.Println("error: ", err)
+		}
+	case "/last":
+		token, err := storage.SelectTokenBy(&update.Message.From)
 
-	if err != nil {
-		log.Println("error: ", err)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		log.Println("user: ", update.Message.From, " token: ", token)
+
+		err = (&SendMessage{
+			ChatId:    update.Message.From.Id,
+			Text:      "Your last valid token is `" + token + "`.",
+			ParseMode: "Markdown",
+		}).To(t.api)
+
+		if err != nil {
+			log.Println("error: ", err)
+		}
+	case "/revoke":
+		err := (&SendMessage{
+			ChatId: update.Message.From.Id,
+			Text:   "Not implemented yet.",
+		}).To(t.api)
+
+		if err != nil {
+			log.Println("error: ", err)
+		}
+	case "/help":
+		err := (&SendMessage{
+			ChatId: update.Message.From.Id,
+			Text:   "Not implemented yet.",
+		}).To(t.api)
+
+		if err != nil {
+			log.Println("error: ", err)
+		}
+	default:
+		err := (&SendMessage{
+			ChatId: update.Message.From.Id,
+			Text:   "Wrong command. Try /help to see usage details.",
+		}).To(t.api)
+
+		if err != nil {
+			log.Println("error: ", err)
+		}
 	}
 }
 
@@ -57,15 +102,23 @@ func (t *TelePyth) HandleNotifyRequest(w http.ResponseWriter, req *http.Request)
 }
 
 func (t *TelePyth) PollUpdates() {
-	log.Println("timeout: ", t.timeout)
+	offset := 0
+
 	for {
-		updates, err := t.api.GetUpdates(0, 100, t.timeout, nil)
+		updates, err := t.api.GetUpdates(offset, 100, t.timeout, nil)
 
 		if err != nil {
 			//  TODO: more logging
 			log.Println(err)
-		} else {
-			log.Println(updates)
+		}
+
+		for _, update := range updates {
+			log.Println(update)
+			t.HandleTelegramUpdate(&update)
+
+			if update.UpdateId >= offset {
+				offset = update.UpdateId + 1
+			}
 		}
 	}
 }
@@ -74,6 +127,8 @@ func (t *TelePyth) Serve() error {
 	// run go-routing for long polling
 	if t.polling {
 		log.Println("poling:", t.polling)
+		log.Println("timeout: ", t.timeout)
+
 		go t.PollUpdates()
 	}
 
