@@ -1,8 +1,10 @@
 package srv
 
 import (
+	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 )
 
 type TelePyth struct {
@@ -94,7 +96,57 @@ func (t *TelePyth) HandleWebhookRequest(w http.ResponseWriter, req *http.Request
 }
 
 func (t *TelePyth) HandleNotifyRequest(w http.ResponseWriter, req *http.Request) {
-	log.Println("HandleNotifyRequest(): not implemented!")
+	// validate request method
+	if req.Method != "POST" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// check that content type is plain/text
+	if contentType, ok := req.Header["Content-Type"]; !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	} else if contentType[0] == "plain/text" {
+		// do nothing here
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// split string to extract token
+	token := strings.TrimPrefix(req.RequestURI, "/api/notify/")
+
+	if len(token) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// get user by token
+	user, err := t.Storage.SelectUserBy(token)
+
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	// extract message text
+	bytes, err := ioutil.ReadAll(req.Body)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// send notification to user
+	err = (&SendMessage{
+		ChatId: user.Id,
+		Text:   string(bytes),
+	}).To(t.Api)
+
+	if err != nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return
+	}
 }
 
 func (t *TelePyth) PollUpdates() {
