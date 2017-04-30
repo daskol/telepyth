@@ -7,6 +7,16 @@ import (
 	"strings"
 )
 
+const helpMessage = `@telepyth\_bot is Telegram notifications in Python.
+
+*Avaliable commands*:
+/start begin interaction and issue new token.
+/revoke revoke token issued before.
+/last send currently valid token or nothing.
+/help show help message and credentials.
+
+See source code and more examples on [github page](https://github.com/daskol/telepyth).`
+
 type TelePyth struct {
 	Api     *TelegramBotApi
 	Storage *Storage
@@ -16,9 +26,7 @@ type TelePyth struct {
 }
 
 func (t *TelePyth) HandleTelegramUpdate(update *Update) {
-	log.Println("updates:", update.Message)
-	log.Println("updates:", update.Message.From)
-	log.Println("")
+	log.Println("update from", update.Message.From.Id)
 
 	switch update.Message.Text {
 	case "/start":
@@ -47,8 +55,6 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 			return
 		}
 
-		log.Println("user: ", update.Message.From, " token: ", token)
-
 		err = (&SendMessage{
 			ChatId:    update.Message.From.Id,
 			Text:      "Your last valid token is `" + token + "`.",
@@ -70,7 +76,8 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 	case "/help":
 		err := (&SendMessage{
 			ChatId: update.Message.From.Id,
-			Text:   "Not implemented yet.",
+            Text:   helpMessage,
+            ParseMode: "Markdown",
 		}).To(t.Api)
 
 		if err != nil {
@@ -79,7 +86,7 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 	default:
 		err := (&SendMessage{
 			ChatId: update.Message.From.Id,
-			Text:   "Wrong command. Try /help to see usage details.",
+			Text:   "Unknown command. Try /help to see usage details.",
 		}).To(t.Api)
 
 		if err != nil {
@@ -106,9 +113,14 @@ func (t *TelePyth) HandleNotifyRequest(w http.ResponseWriter, req *http.Request)
 	if contentType, ok := req.Header["Content-Type"]; !ok {
 		w.WriteHeader(http.StatusBadRequest)
 		return
-	} else if contentType[0] == "plain/text" {
-		// do nothing here
+	} else if contentType[0] == "plain/text" ||
+        strings.HasPrefix(contentType[0], "plain/text; ") {
+            // TODO: refactor this check
+            // do nothing here
 	} else {
+        for k, v := range contentType {
+            log.Println(k, v)
+        }
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -161,7 +173,6 @@ func (t *TelePyth) PollUpdates() {
 		}
 
 		for _, update := range updates {
-			log.Println(update)
 			t.HandleTelegramUpdate(&update)
 
 			if update.UpdateId >= offset {
