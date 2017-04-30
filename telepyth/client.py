@@ -37,6 +37,19 @@ class TelePythClient(object):
 
             return res.getcode()
         except Exception as e:
+            # TODO: handle more accuratly exceptions
             print('During request exception was raised:', e, file=stderr)
             print(exc_info(), file=stderr)
             return None
+
+    def __repr__(self):
+        template = '<TelePythClient token={token} url={url}>'
+        return template.format(url=self.base_url, token=self.token)
+
+    @property
+    def host(self):
+        return self.base_url
+
+    @host.setter
+    def host(self, base_url):
+        self.base_url = base_url
