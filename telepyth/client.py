@@ -7,6 +7,9 @@ from urllib.request import Request, urlopen
 from .version import __user_agent__, __version__
 
 
+__all__ = ['TelePythClient']
+
+
 class TelePythClient(object):
 
     DEBUG_URL = 'http://localhost:8080/api/notify/'
