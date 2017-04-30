@@ -1,0 +1,16 @@
+appdirs
+decorator
+ipython
+ipython-genutils
+jedi
+packaging
+pexpect
+pickleshare
+prompt-toolkit
+ptyprocess
+Pygments
+pyparsing
+simplegeneric
+six
+traitlets
+wcwidth
