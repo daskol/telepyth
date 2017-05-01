@@ -1,0 +1,14 @@
+#   telepyth.toml
+#   See https://github.com/daskol/telepyth for details.
+
+# Access token to Telegram Bot API see https://core.telegram.org/bots/api
+token = "123456789:ABCDEFGIJKLMNOP-abc-A1aB2bC3cD4cE5e"
+
+# Database file where to store credentials
+storage = "bolt.db"
+
+# Use polling method to get updates from Telegram users.
+polling = false
+
+# Timeout in seconds for long polling.
+timeout = 30
