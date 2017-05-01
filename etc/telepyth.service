@@ -1,0 +1,8 @@
+[Unit]
+Description=TelePyth backend daemon.
+Documentation=https://github.com/daskol/telepyth
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/telepyth-srv --config /var/lib/telepyth/config.toml
+WorkingDirectory=/var/lib/telepyth
