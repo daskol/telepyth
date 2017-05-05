@@ -2,14 +2,19 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"github.com/boltdb/bolt"
 	"log"
 )
 
 func main() {
+	dsn := flag.String("dsn", "bolt.db", "Data Source Name.")
+
+	flag.Parse()
+
 	var storage *bolt.DB
 
-	if db, err := bolt.Open("../var/bolt.data", 0600, nil); err != nil {
+	if db, err := bolt.Open(*dsn, 0600, nil); err != nil {
 		log.Fatal(err)
 	} else {
 		storage = db
