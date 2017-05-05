@@ -78,6 +78,10 @@ celerybeat-schedule
 # dotenv
 .env
 
+# database and data files
+*.db
+*.data
+
 # virtualenv
 venv/
 ENV/
@@ -89,4 +93,5 @@ ENV/
 .ropeproject
 
 # Ignore target binary
-/main
+/telepyth-srv
+/tools/list-keys
