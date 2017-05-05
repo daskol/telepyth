@@ -30,6 +30,7 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 
 	switch update.Message.Text {
 	case "/start":
+		log.Println(update.Message.From.Id, "send /start")
 		token, err := t.Storage.InsertUser(&update.Message.From)
 
 		if err != nil {
@@ -48,6 +49,7 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 			log.Println("error: ", err)
 		}
 	case "/last":
+		log.Println(update.Message.From.Id, "send /last")
 		token, err := t.Storage.SelectTokenBy(&update.Message.From)
 
 		if err != nil {
@@ -65,6 +67,7 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 			log.Println("error: ", err)
 		}
 	case "/revoke":
+		log.Println(update.Message.From.Id, "send /revoke")
 		err := (&SendMessage{
 			ChatId: update.Message.From.Id,
 			Text:   "Not implemented yet.",
@@ -74,16 +77,18 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 			log.Println("error: ", err)
 		}
 	case "/help":
+		log.Println(update.Message.From.Id, "send /help")
 		err := (&SendMessage{
-			ChatId: update.Message.From.Id,
-            Text:   helpMessage,
-            ParseMode: "Markdown",
+			ChatId:    update.Message.From.Id,
+			Text:      helpMessage,
+			ParseMode: "Markdown",
 		}).To(t.Api)
 
 		if err != nil {
 			log.Println("error: ", err)
 		}
 	default:
+		log.Println(update.Message.From.Id, "send unknown command")
 		err := (&SendMessage{
 			ChatId: update.Message.From.Id,
 			Text:   "Unknown command. Try /help to see usage details.",
@@ -93,9 +98,6 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 			log.Println("error: ", err)
 		}
 	}
-}
-
-func (t *TelePyth) HandleHttpRequest() {
 }
 
 func (t *TelePyth) HandleWebhookRequest(w http.ResponseWriter, req *http.Request) {
@@ -114,13 +116,13 @@ func (t *TelePyth) HandleNotifyRequest(w http.ResponseWriter, req *http.Request)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	} else if contentType[0] == "plain/text" ||
-        strings.HasPrefix(contentType[0], "plain/text; ") {
-            // TODO: refactor this check
-            // do nothing here
+		strings.HasPrefix(contentType[0], "plain/text; ") {
+		// TODO: refactor this check
+		// do nothing here
 	} else {
-        for k, v := range contentType {
-            log.Println(k, v)
-        }
+		for k, v := range contentType {
+			log.Println(k, v)
+		}
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -140,6 +142,8 @@ func (t *TelePyth) HandleNotifyRequest(w http.ResponseWriter, req *http.Request)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
+
+	log.Println("user", user.Id, "notify with token", token)
 
 	// extract message text
 	bytes, err := ioutil.ReadAll(req.Body)
