@@ -155,8 +155,9 @@ func (t *TelePyth) HandleNotifyRequest(w http.ResponseWriter, req *http.Request)
 
 	// send notification to user
 	err = (&SendMessage{
-		ChatId: user.Id,
-		Text:   string(bytes),
+		ChatId:    user.Id,
+		Text:      string(bytes),
+		ParseMode: "Markdown",
 	}).To(t.Api)
 
 	if err != nil {
