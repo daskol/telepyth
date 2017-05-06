@@ -16,9 +16,7 @@ TelePyth Bot understand some other simple commands. Type
 + `/last` to send currently valid token or nothing if there is not active one;
 + `/help` to see help message and credentials.
 
-![TelePyth Bot commands](doc/telepyth-commands.png)
-
-### IPython magics
+### IPython Magics
 
 It is easy to send message after token is issued. Just install `telepyth` package, import it and notify
 
@@ -33,4 +31,4 @@ See more examples and usage details [here](examples/).
 
 ## Credentials
 
-&copy; [Daniel Bershatsky](https://github.com/daskol) <[daniel.bershatsky](mailto:daniel.berhatsky@skolkovotech.ru)>, 2017
+&copy; [Daniel Bershatsky](https://github.com/daskol) <[daniel.bershatsky@skolkovotech.ru](mailto:daniel.berhatsky@skolkovotech.ru)>, 2017
