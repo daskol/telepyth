@@ -70,7 +70,7 @@ class TelePythMagics(Magics):
             print('telepyth v%s' % __version__, file=stderr)
             print('Telegram notification with IPython magics.', file=stderr)
             print('(c) Daniel Bershatsky '
-                  '<daniel.bershatsky@skolkovotech.com>, 2017', file=stderr)
+                  '<daniel.bershatsky@skolkovotech.ru>, 2017', file=stderr)
             return self
 
         if args.debug:
