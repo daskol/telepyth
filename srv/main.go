@@ -165,6 +165,21 @@ func (t *TelePyth) HandleNotifyRequest(w http.ResponseWriter, req *http.Request)
 	}
 }
 
+func (t *TelePyth) HandlePingRequest(w http.ResponseWriter, req *http.Request) {
+	// validate request method
+	if req.Method != "GET" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// write response
+	pong := []byte("Pong.\n")
+
+	if bytes, err := w.Write(pong); err != nil || bytes != len(pong) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
 func (t *TelePyth) PollUpdates() {
 	offset := 0
 
@@ -197,8 +212,9 @@ func (t *TelePyth) Serve() error {
 
 	// run http server
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/webhook/"+t.Api.GetToken(), t.HandleWebhookRequest)
 	mux.HandleFunc("/api/notify/", t.HandleNotifyRequest)
+	mux.HandleFunc("/api/ping/", t.HandlePingRequest)
+	mux.HandleFunc("/api/webhook/"+t.Api.GetToken(), t.HandleWebhookRequest)
 
 	srv := http.Server{
 		Addr:    ":8080",
