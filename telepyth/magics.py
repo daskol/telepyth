@@ -74,7 +74,7 @@ class TelePythMagics(Magics):
             return self
 
         if args.debug:
-            self.debug = self.debug
+            self.debug = args.debug
             print('Debug mode on.', file=stderr)
 
         if args.host:
@@ -131,7 +131,7 @@ class TelePythMagics(Magics):
             stream = StringIO()
 
             if exc_line:
-                stream.write('_Exception was raised in line magic._')
+                stream.write('*Exception was raised in line magic.*')
                 stream.write('\n')
                 self.exc_info(line, stream)
 
@@ -139,7 +139,7 @@ class TelePythMagics(Magics):
                 stream.write('\n')  # add one more blank line
 
             if exc_cell:
-                stream.write('_Exception was raised in line cell._')
+                stream.write('*Exception was raised in line cell.*')
                 stream.write('\n')
                 self.exc_info(cell, stream)
 
@@ -163,7 +163,7 @@ class TelePythMagics(Magics):
 
         if is_line and is_cell:
             stream = StringIO()
-            stream.write('_%s_' % str(line.result))
+            stream.write('*%s*' % str(line.result))
             stream.write('\n')
             stream.write('%s' % str(cell.result))
             return stream, True
