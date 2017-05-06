@@ -28,7 +28,7 @@ class TelePythClient(object):
         req = Request(url, method='POST')
         req.add_header('Content-Type', 'plain/text; encoding=utf-8')
         req.add_header('User-Agent', __user_agent__ + '/' + __version__)
-        req.data = text.encode('utf8')
+        req.data = text
 
         try:
             res = urlopen(req)
