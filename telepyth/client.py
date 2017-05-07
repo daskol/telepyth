@@ -1,7 +1,7 @@
 #   encoding: utf8
 #   client.py
 
-from sys import exc_info, stderr
+from sys import exc_info, stderr, version_info
 from urllib.request import Request, urlopen
 
 from .version import __user_agent__, __version__
@@ -28,7 +28,7 @@ class TelePythClient(object):
         req = Request(url, method='POST')
         req.add_header('Content-Type', 'plain/text; encoding=utf-8')
         req.add_header('User-Agent', __user_agent__ + '/' + __version__)
-        req.data = text
+        req.data = text.read().encode('utf8')  # support for 3.4+
 
         try:
             res = urlopen(req)
