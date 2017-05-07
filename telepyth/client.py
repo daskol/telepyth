@@ -1,7 +1,8 @@
 #   encoding: utf8
 #   client.py
 
-from sys import exc_info, stderr, version_info
+from sys import exc_info, stderr
+from traceback import print_exception
 from urllib.request import Request, urlopen
 
 from .version import __user_agent__, __version__
@@ -42,7 +43,7 @@ class TelePythClient(object):
         except Exception as e:
             # TODO: handle more accuratly exceptions
             print('During request exception was raised:', e, file=stderr)
-            print(exc_info(), file=stderr)
+            print_exception(*exc_info(), limit=42, file=stderr)
             return None
 
     def __repr__(self):
