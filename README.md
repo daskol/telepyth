@@ -23,8 +23,8 @@ It is easy to send message after token is issued. Just install `telepyth` packag
 ```python
     import telepyth
 
-    %telepyth token 123456789
-    %telepyth send Very magic, wow!
+    %telepyth -t 123456789
+    %telepyth 'Very magic, wow!'
 ```
 
 See more examples and usage details [here](examples/).
