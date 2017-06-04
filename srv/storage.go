@@ -1,29 +1,55 @@
 package srv
 
 import (
+	"bytes"
+	"encoding/gob"
 	"errors"
 	"github.com/boltdb/bolt"
 	"math/rand"
 	"strconv"
+	"time"
 )
+
+//  UserToken represents Telegram user and some system information used to
+//  validate and revoke tokens.
+type UserToken struct {
+	User
+
+	IsTokenRevoked bool
+}
+
+func UserTokenDecode(value []byte) (*UserToken, error) {
+	u := &UserToken{}
+	buffer := bytes.NewBuffer(value)
+	dec := gob.NewDecoder(buffer)
+
+	if err := dec.Decode(u); err != nil {
+		return nil, err
+	} else {
+		return u, nil
+	}
+}
+
+func (u *UserToken) UserTokenEncode() ([]byte, error) {
+	var buffer bytes.Buffer
+
+	enc := gob.NewEncoder(&buffer)
+
+	if err := enc.Encode(*u); err != nil {
+		return nil, err
+	} else {
+		return buffer.Bytes(), nil
+	}
+}
 
 var indexName []byte = []byte("index")        // index token -> user
 var revIndexName []byte = []byte("rev-index") // inverted index user -> token
 
-// list of keys
-var id []byte = []byte("Id")
-var firstName []byte = []byte("FirstName")
-var lastName []byte = []byte("LastName")
-var userName []byte = []byte("UserName")
-
-//  TODO: improve enthropy
-func GenToken() (string, error) {
-	token := strconv.FormatUint(rand.Uint64(), 10)
-	return token, nil
-}
-
+//  Storage stores persistently information about users and tokens. It is
+//  build on top of BoltDB.
 type Storage struct {
-	db *bolt.DB
+	db  *bolt.DB
+	rnd *rand.Rand
 }
 
 func NewStorage(path string) (*Storage, error) {
@@ -50,8 +76,15 @@ func NewStorage(path string) (*Storage, error) {
 		db.Close()
 		return nil, err
 	} else {
-		return &Storage{db}, nil
+		source := rand.NewSource(time.Now().UnixNano())
+		random := rand.New(source)
+		return &Storage{db, random}, nil
 	}
+}
+
+func (s *Storage) NextToken() (string, error) {
+	token := strconv.FormatUint(s.rnd.Uint64(), 10)
+	return token, nil
 }
 
 func (s *Storage) Close() {
@@ -62,7 +95,7 @@ func (s *Storage) Close() {
 
 func (s *Storage) GenToken(bucket *bolt.Bucket) (string, error) {
 	for i := 0; i != 5; i += 1 {
-		if value, err := GenToken(); err != nil {
+		if value, err := s.NextToken(); err != nil {
 			return "", err
 		} else if nested := bucket.Bucket([]byte(value)); nested == nil {
 			return value, nil
@@ -85,27 +118,12 @@ func (s *Storage) InsertUser(user *User) (string, error) {
 		}
 
 		//  insert user in token -> user index
-		bucket, err := index.CreateBucketIfNotExists([]byte(token))
-
-		if err != nil {
-			return err
-		}
-
 		user_id := strconv.Itoa(user.Id)
+		userToken := &UserToken{User: *user}
 
-		if err := bucket.Put(id, []byte(user_id)); err != nil {
+		if bytes, err := userToken.UserTokenEncode(); err != nil {
 			return err
-		}
-
-		if err := bucket.Put(firstName, []byte(user.FirstName)); err != nil {
-			return err
-		}
-
-		if err := bucket.Put(lastName, []byte(user.LastName)); err != nil {
-			return err
-		}
-
-		if err := bucket.Put(userName, []byte(user.UserName)); err != nil {
+		} else if err := index.Put([]byte(token), bytes); err != nil {
 			return err
 		}
 
@@ -124,29 +142,19 @@ func (s *Storage) InsertUser(user *User) (string, error) {
 func (s *Storage) SelectUserBy(token string) (*User, error) {
 	user := new(User)
 	err := s.db.View(func(tx *bolt.Tx) error {
-		index := tx.Bucket(indexName)
-		bucket := index.Bucket([]byte(token))
+		bytes := tx.Bucket(indexName).Get([]byte(token))
 
-		if bucket == nil {
+		if bytes == nil {
 			user = nil
 			return errors.New("unknown token")
 		}
 
-		var err error
-
-		userId := bucket.Get(id)
-		user.Id, err = strconv.Atoi(string(userId))
-
-		if err != nil {
-			user = nil
+		if val, err := UserTokenDecode(bytes); err != nil {
 			return err
+		} else {
+			user = &val.User
+			return nil
 		}
-
-		user.FirstName = string(bucket.Get(firstName))
-		user.LastName = string(bucket.Get(lastName))
-		user.UserName = string(bucket.Get(userName))
-
-		return nil
 	})
 	return user, err
 }
@@ -157,7 +165,7 @@ func (s *Storage) SelectTokenBy(user *User) (string, error) {
 		user_id := strconv.Itoa(user.Id)
 		revIndex := tx.Bucket(revIndexName)
 
-		if value := revIndex.Get([]byte(user_id)); len(value) == 0 {
+		if value := revIndex.Get([]byte(user_id)); value == nil {
 			return errors.New("unknown user")
 		} else {
 			token = string(value)
@@ -165,4 +173,47 @@ func (s *Storage) SelectTokenBy(user *User) (string, error) {
 		}
 	})
 	return token, err
+}
+
+//  RevokeTokenBy revokes access token and implicitly update user info.
+func (s *Storage) RevokeTokenBy(user *User) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		user_id := strconv.Itoa(user.Id)
+		revIndex := tx.Bucket(revIndexName)
+		token := []byte{}
+
+		if token = revIndex.Get([]byte(user_id)); token == nil {
+			return errors.New("unknown user")
+		}
+
+		userToken := &UserToken{User: *user, IsTokenRevoked: true}
+
+		if bytes, err := userToken.UserTokenEncode(); err != nil {
+			return err
+		} else if err := tx.Bucket(indexName).Put(token, bytes); err != nil {
+			return err
+		} else {
+			return nil
+		}
+	})
+}
+
+//  IsTokenRevokedBy test whether access token was revoked.
+func (s *Storage) IsTokenRevokedBy(token string) (bool, error) {
+	revoked := true
+	err := s.db.View(func(tx *bolt.Tx) error {
+		bytes := tx.Bucket(indexName).Get([]byte(token))
+
+		if bytes == nil {
+			return errors.New("unknown user")
+		}
+
+		if ut, err := UserTokenDecode(bytes); err != nil {
+			return err
+		} else {
+			revoked = ut.IsTokenRevoked
+			return nil
+		}
+	})
+	return revoked, err
 }
