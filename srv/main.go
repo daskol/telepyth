@@ -57,20 +57,42 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 			return
 		}
 
-		err = (&SendMessage{
-			ChatId:    update.Message.From.Id,
-			Text:      "Your last valid token is `" + token + "`.",
-			ParseMode: "Markdown",
-		}).To(t.Api)
-
-		if err != nil {
+		if revoked, err := t.Storage.IsTokenRevokedBy(token); err != nil {
 			log.Println("error: ", err)
+		} else if revoked {
+			err = (&SendMessage{
+				ChatId: update.Message.From.Id,
+				Text: "You do not have any valid token. " +
+					"Send /start to issue new one.",
+				ParseMode: "Markdown",
+			}).To(t.Api)
+
+			if err != nil {
+				log.Println("error: ", err)
+			}
+		} else {
+			err = (&SendMessage{
+				ChatId:    update.Message.From.Id,
+				Text:      "Your last valid token is `" + token + "`.",
+				ParseMode: "Markdown",
+			}).To(t.Api)
+
+			if err != nil {
+				log.Println("error: ", err)
+			}
 		}
 	case "/revoke":
 		log.Println(update.Message.From.Id, "send /revoke")
+
+		if err := t.Storage.RevokeTokenBy(&update.Message.From); err != nil {
+			log.Println("error:", err)
+			return
+		}
+
 		err := (&SendMessage{
 			ChatId: update.Message.From.Id,
-			Text:   "Not implemented yet.",
+			Text: "Token is already revoked. " +
+				"Send /start to obtain new token.",
 		}).To(t.Api)
 
 		if err != nil {
@@ -133,6 +155,14 @@ func (t *TelePyth) HandleNotifyRequest(w http.ResponseWriter, req *http.Request)
 	if len(token) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		return
+	}
+
+	// is token valid
+	if revoked, err := t.Storage.IsTokenRevokedBy(token); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	} else if revoked {
+		w.WriteHeader(http.StatusUnauthorized)
 	}
 
 	// get user by token
