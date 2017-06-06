@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	_ "log"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"strconv"
 )
 
 type User struct {
@@ -140,17 +142,100 @@ func (s *SendMessage) To(t *TelegramBotApi) error {
 	}
 
 	url := "https://api.telegram.org/bot" + t.token + "/sendMessage"
+	_, err := http.Post(url, "application/json", content)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type SendPhoto struct {
+	ChatId int `json:"chat_id"`
+
+	// Photo is type of either string or io.Writer in case of uploading
+	Photo               interface{} `json:"photo,omitempty"`
+	Caption             string      `json:"caption,omitempty"`
+	DisableNotification bool        `json:"disable_notification,omitempty"`
+	ReplyToMessageId    int         `json:"reply_to_message_id,omitempty"`
+	ReplyMarkup         interface{} `json:"reply_markup"`
+}
+
+func (s *SendPhoto) To(t *TelegramBotApi) error {
+	switch s.Photo.(type) {
+	case io.Reader:
+		return s.NewTo(t)
+	case string:
+		return s.ExistingTo(t)
+	default:
+		return errors.New("wrong type of SendPhoto.Photo")
+	}
+}
+
+func (s *SendPhoto) ExistingTo(t *TelegramBotApi) error {
+	content := new(bytes.Buffer)
+	encoder := json.NewEncoder(content)
+
+	if err := encoder.Encode(s); err != nil {
+		return err
+	}
+
+	url := "https://api.telegram.org/bot" + t.token + "/sendMessage"
 	res, err := http.Post(url, "application/json", content)
 
 	if res != nil {
 		return err
 	}
 
-	//	log.Println(res)
-
 	return nil
 }
 
-func (t *TelegramBotApi) SendMessage(msg SendMessage) error {
+func (s *SendPhoto) NewTo(t *TelegramBotApi) error {
+	var b bytes.Buffer
+
+	w := multipart.NewWriter(&b)
+
+	if err := w.WriteField("chat_id", strconv.Itoa(s.ChatId)); err != nil {
+		return err
+	}
+
+	if len(s.Caption) > 0 {
+		if err := w.WriteField("caption", s.Caption); err != nil {
+			return err
+		}
+	}
+
+	photo, err := w.CreateFormFile("photo", "figure.png")
+
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(photo, s.Photo.(io.Reader)); err != nil {
+		return err
+	}
+
+	//  TODO: skip rest of arguments
+
+	if err := w.Close(); err != nil {
+		return err
+	}
+
+	url := "https://api.telegram.org/bot" + t.token + "/sendPhoto"
+	req, err := http.NewRequest("POST", url, &b)
+
+	if err != nil {
+		return nil
+	}
+
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	cli := &http.Client{}
+	_, err = cli.Do(req)
+
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
