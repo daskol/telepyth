@@ -1,10 +1,12 @@
 #   encoding: utf8
 #   client.py
 
+from io import BytesIO
 from sys import exc_info, stderr
 from traceback import print_exception
 from urllib.request import Request, urlopen
 
+from .multipart import ContentDisposition, MultipartFormData
 from .version import __user_agent__, __version__
 
 
@@ -57,3 +59,25 @@ class TelePythClient(object):
     @host.setter
     def host(self, base_url):
         self.base_url = base_url
+
+    def send_figure(self, fig, caption=''):
+        figure = BytesIO()
+        fig.savefig(figure, format='png')
+        figure.seek(0)
+
+        parts = [ContentDisposition('caption', caption),
+                 ContentDisposition('figure', figure, filename="figure.png",
+                                    content_type='image/png')]
+
+        form = MultipartFormData(*parts)
+        content_type = 'multipart/form-data; boundary=%s' % form.boundary
+
+        url = self.base_url + self.token
+        req = Request(url, method='POST')
+        req.add_header('Content-Type', content_type)
+        req.add_header('User-Agent', __user_agent__ + '/' + __version__)
+        req.data = form().read()
+
+        res = urlopen(req)
+
+        return res.getcode()

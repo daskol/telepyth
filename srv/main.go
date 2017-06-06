@@ -122,6 +122,33 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 	}
 }
 
+func (t *TelePyth) FindUser(req *http.Request) (*User, int) {
+	// split string to extract token
+	token := strings.TrimPrefix(req.RequestURI, "/api/notify/")
+
+	if len(token) == 0 {
+		return nil, http.StatusBadRequest
+	}
+
+	// is token valid
+	if revoked, err := t.Storage.IsTokenRevokedBy(token); err != nil {
+		return nil, http.StatusInternalServerError
+	} else if revoked {
+		return nil, http.StatusUnauthorized
+	}
+
+	// get user by token
+	user, err := t.Storage.SelectUserBy(token)
+
+	if err != nil {
+		return nil, http.StatusNotFound
+	}
+
+	log.Println("token", token, "belongs to user", user.Id)
+
+	return user, http.StatusOK
+}
+
 func (t *TelePyth) HandleWebhookRequest(w http.ResponseWriter, req *http.Request) {
 	log.Println("HandleWebhookRequest(): not implemented!")
 }
@@ -133,54 +160,40 @@ func (t *TelePyth) HandleNotifyRequest(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	status := http.StatusOK
+
 	// check that content type is plain/text
 	if contentType, ok := req.Header["Content-Type"]; !ok {
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		status = http.StatusBadRequest
 	} else if contentType[0] == "plain/text" ||
 		strings.HasPrefix(contentType[0], "plain/text; ") {
-		// TODO: refactor this check
-		// do nothing here
+		status = t.HandlePlainTextNotifyRequest(w, req)
+	} else if contentType[0] == "multipart/form-data" ||
+		strings.HasPrefix(contentType[0], "multipart/form-data; ") {
+		status = t.HandleMultipartNotifyRequest(w, req)
 	} else {
 		for k, v := range contentType {
 			log.Println(k, v)
 		}
-		w.WriteHeader(http.StatusBadRequest)
-		return
+
+		status = http.StatusBadRequest
 	}
 
-	// split string to extract token
-	token := strings.TrimPrefix(req.RequestURI, "/api/notify/")
+	w.WriteHeader(status)
+}
 
-	if len(token) == 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		return
+func (t *TelePyth) HandlePlainTextNotifyRequest(w http.ResponseWriter, req *http.Request) int {
+	user, status := t.FindUser(req)
+
+	if status >= 400 {
+		return status
 	}
-
-	// is token valid
-	if revoked, err := t.Storage.IsTokenRevokedBy(token); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	} else if revoked {
-		w.WriteHeader(http.StatusUnauthorized)
-	}
-
-	// get user by token
-	user, err := t.Storage.SelectUserBy(token)
-
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	log.Println("user", user.Id, "notify with token", token)
 
 	// extract message text
 	bytes, err := ioutil.ReadAll(req.Body)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return http.StatusInternalServerError
 	}
 
 	// send notification to user
@@ -191,9 +204,53 @@ func (t *TelePyth) HandleNotifyRequest(w http.ResponseWriter, req *http.Request)
 	}).To(t.Api)
 
 	if err != nil {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		return
+		return http.StatusServiceUnavailable
 	}
+
+	return http.StatusOK
+}
+
+func (t *TelePyth) HandleMultipartNotifyRequest(w http.ResponseWriter, req *http.Request) int {
+	user, status := t.FindUser(req)
+
+	if status >= 400 {
+		return status
+	}
+
+	//  parse form
+	if err := req.ParseMultipartForm(10 * 1024 * 1024); err != nil {
+		return http.StatusBadRequest
+	}
+
+	caption := ""
+
+	if captions, ok := req.MultipartForm.Value["caption"]; ok {
+		caption = captions[0]
+	}
+
+	figure, ok := req.MultipartForm.File["figure"]
+
+	if !ok {
+		return http.StatusBadRequest
+	}
+
+	file, err := figure[0].Open()
+
+	if err != nil {
+		return http.StatusInternalServerError
+	}
+
+	err = (&SendPhoto{
+		ChatId:  user.Id,
+		Photo:   file,
+		Caption: caption,
+	}).To(t.Api)
+
+	if err != nil {
+		return http.StatusServiceUnavailable
+	}
+
+	return http.StatusOK
 }
 
 func (t *TelePyth) HandlePingRequest(w http.ResponseWriter, req *http.Request) {
