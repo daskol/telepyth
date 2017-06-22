@@ -188,6 +188,8 @@ func (s *SendPhoto) ExistingTo(t *TelegramBotApi) error {
 		return err
 	}
 
+    defer res.Body.Close()
+
 	return nil
 }
 
