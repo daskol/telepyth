@@ -142,11 +142,13 @@ func (s *SendMessage) To(t *TelegramBotApi) error {
 	}
 
 	url := "https://api.telegram.org/bot" + t.token + "/sendMessage"
-	_, err := http.Post(url, "application/json", content)
+	res, err := http.Post(url, "application/json", content)
 
 	if err != nil {
 		return err
 	}
+
+	defer res.Body.Close()
 
 	return nil
 }
@@ -188,7 +190,7 @@ func (s *SendPhoto) ExistingTo(t *TelegramBotApi) error {
 		return err
 	}
 
-    defer res.Body.Close()
+	defer res.Body.Close()
 
 	return nil
 }
@@ -233,11 +235,13 @@ func (s *SendPhoto) NewTo(t *TelegramBotApi) error {
 
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	cli := &http.Client{}
-	_, err = cli.Do(req)
+	res, err := cli.Do(req)
 
 	if err != nil {
 		return err
 	}
+
+	defer res.Body.Close()
 
 	return nil
 }
