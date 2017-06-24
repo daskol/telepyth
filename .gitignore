@@ -95,6 +95,8 @@ ENV/
 
 # Ignore target binary
 /telepyth-srv
+/tools/announce
+/tools/migrate-db
 /tools/list-keys
 
 # Ignore swap files
