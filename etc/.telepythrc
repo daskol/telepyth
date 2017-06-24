@@ -1,0 +1,6 @@
+#   .telepythrc
+#   Configuration file of telepyth client in ini-format.
+
+[telepyth]
+token = 1234567890
+base_url = https://daskol.xyz/api/notify/
