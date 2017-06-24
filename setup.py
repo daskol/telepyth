@@ -2,6 +2,10 @@
 #   encoding: utf8
 #   setup.py
 """TelePyth: Telegram notifications in Python.
+
+TelePyth (named /teləˈpaɪθ/) — Telegram Bot that is integrated with IPython.
+It provides ability to send any text notifications to user from Jupyter
+notebook or IPython CLI.
 """
 
 from setuptools import find_packages, setup
