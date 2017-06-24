@@ -32,16 +32,14 @@ class TelePythMagics(Magics):
         self.debug = False
         self.token = None
 
-        # try load token from .telepythrc in wd
-        if exists('.telepythrc'):
-            ini = ConfigParser()
-            ini.read('.telepythrc')
+        # try load token from .telepythrc in wd or at home
+        self.client =  TelePythClient(token=self.token,
+                                      base_url=self.base_url,
+                                      debug=self.debug)
+        self.token = self.client.token
 
-            self.token = ini.get('telepyth', 'token')
-            self.client =  TelePythClient(self.token,
-                                          base_url=self.base_url,
-                                          debug=self.debug)
-            print('Use token %s from .telepythrc.' % self.token, file=stderr)
+        if self.token:
+            print('Use token from .telepythrc.', file=stderr)
 
     @magic_arguments()
     @argument('statement', nargs='*',
