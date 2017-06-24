@@ -81,6 +81,7 @@ celerybeat-schedule
 # database and data files
 *.db
 *.data
+*.bak
 
 # virtualenv
 venv/
@@ -95,3 +96,6 @@ ENV/
 # Ignore target binary
 /telepyth-srv
 /tools/list-keys
+
+# Ignore swap files
+*.swp
