@@ -22,7 +22,7 @@ TelePyth is available as magic in Jupyter as well as client in CLI or UI runtime
 
 #### IPython Magics
 
-It is easy to send messages after token is issued. Just install `telepyth` package by `pip install telepyth', import it and notify
+It is easy to send messages after token is issued. Just install `telepyth` package by `pip install telepyth`, import it and notify
 
 ```python
     import telepyth
