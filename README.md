@@ -5,24 +5,24 @@
 ## Overview
 
 **TelePyth** (named */teləˈpaɪθ/*) &mdash; Telegram Bot that is integrated with IPython.
-It provides ability to send any text notifications to user from Jupyter notebook or IPython CLI.
+It provides ability to send any text notification to user from Jupyter notebook or IPython CLI.
 
 ### Bot Commands
 
-Start chat to [@telepyth\_bot](https://telegram.me/telepyth_bot) and get access token with `/start` command.
-TelePyth Bot understand some other simple commands. Type
-+ `/start` to begin interaction to bot;
+Start chat with [@telepyth\_bot](https://telegram.me/telepyth_bot) and get access token using `/start` command.
+TelePyth Bot understands some other simple commands. Type
++ `/start` to begin interaction with bot;
 + `/revoke` to revoke token issued before;
-+ `/last` to send currently valid token or nothing if there is not active one;
++ `/last` to get current valid token or nothing if there is no active one;
 + `/help` to see help message and credentials.
 
 ### Usage Patterns
 
-TelePyth could be used as magic in jupyter as well as client in CLI or UI runtime.
+TelePyth is available as magic in Jupyter as well as client in CLI or UI runtime.
 
 #### IPython Magics
 
-It is easy to send message after token is issued. Just install `telepyth` package, import it and notify
+It is easy to send messages after token is issued. Just install `telepyth` package by `pip install telepyth`, import it and notify
 
 ```python
     import telepyth
@@ -31,11 +31,9 @@ It is easy to send message after token is issued. Just install `telepyth` packag
     %telepyth 'Very magic, wow!'
 ```
 
-See more examples and usage details [here](examples/).
-
 #### TelePyth Client
 
-TelePythClient is actually basement for its ipython magic and provide low level ability to notify telegram user with @telepyth\_bot.
+TelepythClient allows to send notifications, figures and markdown messages directly without using magics.
 
 ```python
     from telepyth import TelepythClient
@@ -48,10 +46,10 @@ TelePythClient is actually basement for its ipython magic and provide low level 
 
 #### Native Usage
 
-One also can use TelePyth to notify via telegram without any wrappers and bindings.
-For example it could be usefull for bash scripting.
-In this case one could request TelePyth backend directly to notify user.
-For instance to send message from bash one could just perform the following command.
+Note that you can use TelePyth to send notifications via Telegram without any wrappers and bindings.
+This is useful for bash scripting.
+Just request TelePyth backend directly to notify user.
+For instance, to send message from bash: 
 
 ```bash
     curl https://daskol.xyz/api/notify/<access_token_here> \
@@ -59,6 +57,7 @@ For instance to send message from bash one could just perform the following comm
         -H 'Content-Type: plain/text' \
         -d 'Hello, World!'
 ```
+See more examples and usage details [here](examples/).
 
 ## Credentials
 
