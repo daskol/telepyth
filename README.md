@@ -5,7 +5,7 @@
 ## Overview
 
 **TelePyth** (named */teləˈpaɪθ/*) &mdash; Telegram Bot that is integrated with IPython.
-It provides ability to send any text notifications to user from Jupyter notebook or IPython CLI.
+It provides ability to send any text notification to user from Jupyter notebook or IPython CLI.
 
 ### Bot Commands
 
@@ -22,7 +22,7 @@ TelePyth is available as magic in Jupyter as well as client in CLI or UI runtime
 
 #### IPython Magics
 
-It is easy to send messages after token is issued. Just install `telepyth` package, import it and notify
+It is easy to send messages after token is issued. Just install `telepyth` package by `pip install telepyth', import it and notify
 
 ```python
     import telepyth
@@ -33,7 +33,7 @@ It is easy to send messages after token is issued. Just install `telepyth` packa
 
 #### TelePyth Client
 
-TelepythClient allows to notify telegram user with @telepyth\_bot, send a figure and markdown messages directly without using magics.
+TelepythClient allows to send notifications, figures and markdown messages directly without using magics.
 
 ```python
     from telepyth import TelepythClient
@@ -46,7 +46,7 @@ TelepythClient allows to notify telegram user with @telepyth\_bot, send a figure
 
 #### Native Usage
 
-Note that you can use TelePyth to send notifications via telegram without any wrappers and bindings.
+Note that you can use TelePyth to send notifications via Telegram without any wrappers and bindings.
 This is useful for bash scripting.
 Just request TelePyth backend directly to notify user.
 For instance, to send message from bash: 
