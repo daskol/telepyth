@@ -4,8 +4,8 @@
 
 ## Overview
 
-**TelePyth** (named */teləˈpaɪθ/*) &mdash; Telegram Bot that is integrated with IPython.
-It provides ability to send any text notification to user from Jupyter notebook or IPython CLI.
+**TelePyth** (named */teləˈpaɪθ/*) &mdash; is a Telegram bot integrated with IPython.
+It provides an ability to send any text notification to user from Jupyter notebook or IPython CLI.
 
 ### Bot Commands
 
@@ -16,9 +16,9 @@ TelePyth Bot understands some other simple commands. Type
 + `/last` to get current valid token or nothing if there is no active one;
 + `/help` to see help message and credentials.
 
-### Usage Patterns
+## Usage
 
-TelePyth is available as magic in Jupyter as well as client in CLI or UI runtime.
+TelePyth command is available as an IPython magic command which could be used in Jupyter notebook as well as in plain IPython, qtconsole etc. TelePyth package could be also used directly in Python. And also, there is an HTTP API through which all the things works.
 
 #### IPython Magics
 
@@ -44,7 +44,7 @@ TelepythClient allows to send notifications, figures and markdown messages direc
     tp.send_figure(some_pyplot_figure, 'Awesome caption here!')  # or even with figure
 ```
 
-#### Native Usage
+#### HTTP API
 
 Note that you can use TelePyth to send notifications via Telegram without any wrappers and bindings.
 This is useful for bash scripting.
