@@ -52,6 +52,15 @@ directly without using magics.
     tp.send_figure(some_pyplot_figure, 'Awesome caption here!')  # or even with figure
 ```
 
+#### CLI
+
+TelePyth package also provide command line interface (CLI). It is similar to
+IPython magic. For example, one can send notifcation as following.
+
+```bash
+    telepyth -t 31415926 Moar notifications!
+```
+
 #### HTTP API
 
 Note that you can use TelePyth to send notifications via Telegram without any
