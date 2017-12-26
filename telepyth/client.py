@@ -47,6 +47,12 @@ class TelePythClient(object):
             self.base_url = TelePythClient.DEBUG_URL
 
     def __call__(self, text, markdown=True):
+        if not self.access_token:
+            raise ValueError('Access token is not provided. '
+                             'Use option -t to set token or put in '
+                             '.telepythrc file. See details in '
+                             'https://github.com/daskol/telepyth.')
+
         url = self.base_url + self.access_token
 
         req = Request(url, method='POST')
