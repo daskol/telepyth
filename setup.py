@@ -54,4 +54,9 @@ setup(name='telepyth',
       license='MIT',
       platforms=PLATFORMS,
       classifiers=[line for line in CLASSIFIERS.split('\n') if line],
-      packages=find_packages())
+      packages=find_packages(),
+      entry_points={
+          'console_scripts': [
+              'telepyth = telepyth.cli:main',
+          ]
+      })
