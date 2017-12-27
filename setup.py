@@ -36,7 +36,7 @@ PLATFORMS = [
 
 MAJOR = 0
 MINOR = 1
-PATCH = 5
+PATCH = 6
 
 VERSION = '{0:d}.{1:d}.{2:d}'.format(MAJOR, MINOR, PATCH)
 
