@@ -58,7 +58,7 @@ TelePyth package also provide command line interface (CLI). It is similar to
 IPython magic. For example, one can send notifcation as following.
 
 ```bash
-    telepyth -t 31415926 Moar notifications!
+    telepyth -t 31415926 "Moar notifications!"
 ```
 
 #### HTTP API
