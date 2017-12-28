@@ -10,14 +10,17 @@ import (
 var storage *srv.Storage
 
 type Config struct {
-	Token   string `toml:"token"`
-	Storage string `toml:"storage"`
-	Polling bool   `toml:"polling"`
-	Timeout int    `toml:"timeout"`
+	Token      string `toml:"token"`
+	Storage    string `toml:"storage"`
+	Polling    bool   `toml:"polling"`
+	Timeout    int    `toml:"timeout"`
+	MetricsLog string `toml:"metrics_log"`
 }
 
 func main() {
 	configPath := flag.String("config", "", "Path to toml config file.")
+	metricsLog := flag.String("metrics-log", "metrics.tsv",
+		"Tab-separated values.")
 	token := flag.String("token", "", "A unique authentication token.")
 	dbPath := flag.String("database", "bolt.db",
 		"Create or open a database at the given path.")
@@ -27,10 +30,11 @@ func main() {
 	flag.Parse()
 
 	config := &Config{
-		Token:   *token,
-		Storage: *dbPath,
-		Polling: *polling,
-		Timeout: *timeout,
+		Token:      *token,
+		Storage:    *dbPath,
+		Polling:    *polling,
+		Timeout:    *timeout,
+		MetricsLog: *metricsLog,
 	}
 
 	if len(*configPath) != 0 {
@@ -63,9 +67,10 @@ func main() {
 	}
 
 	log.Fatal((&srv.TelePyth{
-		Api:     api,
-		Storage: storage,
-		Polling: true,
-		Timeout: 30,
+		Api:        api,
+		Storage:    storage,
+		Polling:    true,
+		Timeout:    30,
+		MetricsLog: *metricsLog,
 	}).Serve())
 }

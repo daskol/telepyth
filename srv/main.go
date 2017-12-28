@@ -23,6 +23,8 @@ type TelePyth struct {
 
 	Polling bool
 	Timeout int
+
+	MetricsLog string
 }
 
 func (t *TelePyth) HandleTelegramUpdate(update *Update) {
@@ -31,6 +33,7 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 	switch update.Message.Text {
 	case "/start":
 		log.Println(update.Message.From.Id, "send /start")
+		EnqueueLogRecord(update.Message.From.Id, "/start")
 		token, err := t.Storage.InsertUser(&update.Message.From)
 
 		if err != nil {
@@ -50,6 +53,7 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 		}
 	case "/last":
 		log.Println(update.Message.From.Id, "send /last")
+		EnqueueLogRecord(update.Message.From.Id, "/last")
 		token, err := t.Storage.SelectTokenBy(&update.Message.From)
 
 		if err != nil {
@@ -83,6 +87,7 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 		}
 	case "/revoke":
 		log.Println(update.Message.From.Id, "send /revoke")
+		EnqueueLogRecord(update.Message.From.Id, "/revoke")
 
 		if err := t.Storage.RevokeTokenBy(&update.Message.From); err != nil {
 			log.Println("error:", err)
@@ -100,6 +105,7 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 		}
 	case "/help":
 		log.Println(update.Message.From.Id, "send /help")
+		EnqueueLogRecord(update.Message.From.Id, "/help")
 		err := (&SendMessage{
 			ChatId:    update.Message.From.Id,
 			Text:      helpMessage,
@@ -111,6 +117,7 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 		}
 	default:
 		log.Println(update.Message.From.Id, "send unknown command")
+		EnqueueLogRecord(update.Message.From.Id, "<unknown>")
 		err := (&SendMessage{
 			ChatId: update.Message.From.Id,
 			Text:   "Unknown command. Try /help to see usage details.",
@@ -189,6 +196,9 @@ func (t *TelePyth) HandlePlainTextNotifyRequest(w http.ResponseWriter, req *http
 		return status
 	}
 
+	// count send_message event
+	EnqueueLogRecord(user.Id, "send_message")
+
 	// extract message text
 	bytes, err := ioutil.ReadAll(req.Body)
 
@@ -216,6 +226,9 @@ func (t *TelePyth) HandleMultipartNotifyRequest(w http.ResponseWriter, req *http
 	if status >= 400 {
 		return status
 	}
+
+	// count send_message event
+	EnqueueLogRecord(user.Id, "send_figure")
 
 	//  parse form
 	if err := req.ParseMultipartForm(10 * 1024 * 1024); err != nil {
@@ -290,6 +303,13 @@ func (t *TelePyth) PollUpdates() {
 }
 
 func (t *TelePyth) Serve() error {
+	// run logging of events
+	go func() {
+		if err := RunLogger(t.MetricsLog); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
 	// run go-routing for long polling
 	if t.Polling {
 		log.Println("poling:", t.Polling)
