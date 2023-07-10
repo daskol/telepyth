@@ -8,9 +8,8 @@ from sys import exc_info, stderr
 from traceback import print_exception
 from urllib.request import Request, urlopen
 
-from .multipart import ContentDisposition, MultipartFormData
-from .version import __user_agent__, __version__
-
+from telepyth.multipart import ContentDisposition, MultipartFormData
+from telepyth.version import __version__
 
 __all__ = ['TelePythClient']
 
@@ -23,8 +22,11 @@ class TelePythClient(object):
     configuration file.
     """
 
+    BASE_URL = 'https://telepyth.daskol.xyz/api/notify/'
+
     DEBUG_URL = 'http://localhost:8080/api/notify/'
-    BASE_URL = 'https://daskol.xyz/api/notify/'
+
+    UA = f'telepyth/{__version__}'
 
     def __init__(self, token=None, base_url=None, config=None, debug=False):
         defaults = dict(telepyth={
@@ -57,7 +59,7 @@ class TelePythClient(object):
 
         req = Request(url, method='POST')
         req.add_header('Content-Type', 'plain/text; encoding=utf-8')
-        req.add_header('User-Agent', __user_agent__ + '/' + __version__)
+        req.add_header('User-Agent', TelePythClient.UA)
         req.data = text.read().encode('utf8')  # support for 3.4+
 
         try:
@@ -65,7 +67,7 @@ class TelePythClient(object):
 
             if res.getcode() != 200:
                 lines = '\n'.join(res.readlines())
-                msg = '[%d] %s: %s' %(res.getcode(), res.reason, lines)
+                msg = f'[{res.getcode()}] {res.reason}: {lines}'
                 print(msg, file=stderr)
 
             return res.getcode()
@@ -143,7 +145,7 @@ class TelePythClient(object):
         url = self.base_url + self.access_token
         req = Request(url, method='POST')
         req.add_header('Content-Type', content_type)
-        req.add_header('User-Agent', __user_agent__ + '/' + __version__)
+        req.add_header('User-Agent', TelePythClient.UA)
         req.data = form().read()
 
         res = urlopen(req)

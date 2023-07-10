@@ -1,0 +1,85 @@
+# See PEP-517 and PEP-518 for details.
+
+[build-system]
+requires = ["setuptools", "setuptools_scm[toml]>=7", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "telepyth"
+description = "Telegram notifications in Python."
+license = {text = "MIT"}
+authors = [
+    {name = "Daniel Bershatsky", email = "daniel.bershatsky@skolkovotech.ru"},
+]
+maintainers = [
+    {name = "Daniel Bershatsky", email = "daniel.bershatsky@skolkovotech.ru"},
+]
+readme = {file = "README.md", content-type = "text/markdown"}
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Software Development",
+    "Typing :: Typed",
+]
+dynamic = ["version"]
+dependencies = []
+requires-python = ">=3.8,<4"
+
+[project.optional-dependencies]
+magic = ["ipython"]
+huggingface = ["transformers"]
+
+[project.scripts]
+telepyth = "telepyth.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/daskol/telepyth"
+Repository = "https://github.com/daskol/telepyth.git"
+
+[tool.isort]
+
+[tool.mypy]
+ignore_missing_imports = true
+plugins = "numpy.typing.mypy_plugin"
+show_column_numbers = true
+show_error_codes = true
+show_error_context = false
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q -m 'not slow'"
+testpaths = ["telepyth"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.setuptools]
+include-package-data = false
+platforms = ["Linux"]
+zip-safe = false
+
+[tool.setuptools.packages.find]
+include = ["telepyth*"]
+
+[tool.setuptools_scm]
+write_to = "telepyth/version.py"
+
+[tool.yapf]
+based_on_style = "pep8"

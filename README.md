@@ -32,11 +32,36 @@ It is easy to send messages after token is issued. Just install `telepyth`
 package by `pip install telepyth`, import it and notify
 
 ```python
-    import telepyth
+import telepyth
 
-    %telepyth -t 123456789
-    %telepyth 'Very magic, wow!'
+%telepyth -t 123456789
+%telepyth 'Very magic, wow!'
 ```
+
+
+#### HuggingFace Intergration
+
+TelePyth also provides a [trainer callback][1] for HuggingFace's
+`transformers`. There are several usage scenario. The first one is via setting
+reporting method in `TrainingArguments`.
+
+```python
+import telepyth.interaction
+import transformers
+
+args = TrainingArguments(output_dir, report_to=['telepyth'])
+```
+
+For more fine-grained control on how and when callback should report metrics,
+one can set up callback directly in a list of callbacks.
+
+```python
+callback = TelePythCallback(label='finetune', policy='last')
+trainer = Trainer(callbacks=[callback])
+trainer.train()
+```
+
+[1]: https://huggingface.co/docs/transformers/main/en/main_classes/callback
 
 #### TelePyth Client
 
@@ -44,12 +69,12 @@ TelepythClient allows to send notifications, figures and markdown messages
 directly without using magics.
 
 ```python
-    from telepyth import TelepythClient
+from telepyth import TelepythClient
 
-    tp = TelepythClient()
-    tp.send_text('Hello, World!')  # notify with plain text
-    tp.send_text('_bold text_ and then *italic*')  # or with markdown formatted text
-    tp.send_figure(some_pyplot_figure, 'Awesome caption here!')  # or even with figure
+tp = TelepythClient()
+tp.send_text('Hello, World!')  # notify with plain text
+tp.send_text('_bold text_ and then *italic*')  # or with markdown formatted text
+tp.send_figure(some_pyplot_figure, 'Awesome caption here!')  # or even with figure
 ```
 
 #### CLI
@@ -57,8 +82,8 @@ directly without using magics.
 TelePyth package also provide command line interface (CLI). It is similar to
 IPython magic. For example, one can send notifcation as following.
 
-```bash
-    telepyth -t 31415926 "Moar notifications!"
+```shell
+telepyth -t 31415926 "Moar notifications!"
 ```
 
 #### HTTP API
@@ -68,14 +93,14 @@ wrappers and bindings.  This is useful for bash scripting.  Just request
 TelePyth backend directly to notify user.  For instance, to send message from
 bash:
 
-```bash
-    curl https://daskol.xyz/api/notify/<access_token_here> \
-        -X POST \
-        -H 'Content-Type: plain/text' \
-        -d 'Hello, World!'
+```shell
+curl https://daskol.xyz/api/notify/<access_token_here> \
+    -X POST \
+    -H 'Content-Type: plain/text' \
+    -d 'Hello, World!'
 ```
 See more examples and usage details [here](examples/).
 
 ## Credentials
 
-&copy; [Daniel Bershatsky](https://github.com/daskol) <[daniel.bershatsky@skolkovotech.ru](mailto:daniel.berhatsky@skolkovotech.ru)>, 2017
+&copy; [Daniel Bershatsky](https://github.com/daskol) <[daniel.bershatsky@skolkovotech.ru](mailto:daniel.berhatsky@skolkovotech.ru)>, 2017-2022

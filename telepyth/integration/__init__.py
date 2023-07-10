@@ -1,0 +1,1 @@
+from telepyth.integration.huggingface import TelePythCallback
