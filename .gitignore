@@ -99,5 +99,5 @@ ENV/
 /tools/migrate-db
 /tools/list-keys
 
-# Ignore swap files
-*.swp
+# Ignore autogenerate version.
+/telepyth/version.py
