@@ -11,7 +11,7 @@ if is_interactive():
     from telepyth.magics import TelePythMagics
 
 if is_huggingface_imported():
-    from telepyth.huggingface import TelePythCallback
+    from telepyth.integration import TelePythCallback
 
 __all__ = ('TelePythCallback', 'TelePythClient', 'TelePythMagics',
            'TelepythClient')
