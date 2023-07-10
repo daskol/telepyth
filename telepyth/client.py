@@ -24,7 +24,7 @@ class TelePythClient(object):
     """
 
     DEBUG_URL = 'http://localhost:8080/api/notify/'
-    BASE_URL = 'https://daskol.xyz/api/notify/'
+    BASE_URL = 'https://telepyth.daskol.xyz/api/notify/'
 
     def __init__(self, token=None, base_url=None, config=None, debug=False):
         defaults = dict(telepyth={
