@@ -26,6 +26,10 @@ in Jupyter notebook as well as in plain IPython, qtconsole etc. TelePyth
 package could be also used directly in Python. And also, there is an HTTP API
 through which all the things works.
 
+```shell
+pip install --extra-index-url https://mirror.daskol.xyz/pypi/ telepyth
+```
+
 #### IPython Magics
 
 It is easy to send messages after token is issued. Just install `telepyth`
