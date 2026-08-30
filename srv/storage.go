@@ -2,16 +2,19 @@ package srv
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/gob"
 	"errors"
 	"github.com/boltdb/bolt"
-	"math/rand"
+	"io"
 	"strconv"
-	"time"
 )
 
-//  UserToken represents Telegram user and some system information used to
-//  validate and revoke tokens.
+const tokenEntropyBytes = 32
+
+// UserToken represents Telegram user and some system information used to
+// validate and revoke tokens.
 type UserToken struct {
 	User
 
@@ -45,11 +48,11 @@ func (u *UserToken) UserTokenEncode() ([]byte, error) {
 var indexName []byte = []byte("index")        // index token -> user
 var revIndexName []byte = []byte("rev-index") // inverted index user -> token
 
-//  Storage stores persistently information about users and tokens. It is
-//  build on top of BoltDB.
+// Storage stores persistently information about users and tokens. It is
+// build on top of BoltDB.
 type Storage struct {
-	db  *bolt.DB
-	rnd *rand.Rand
+	db     *bolt.DB
+	random io.Reader
 }
 
 func NewStorage(path string) (*Storage, error) {
@@ -76,15 +79,18 @@ func NewStorage(path string) (*Storage, error) {
 		db.Close()
 		return nil, err
 	} else {
-		source := rand.NewSource(time.Now().UnixNano())
-		random := rand.New(source)
-		return &Storage{db, random}, nil
+		return &Storage{db: db, random: rand.Reader}, nil
 	}
 }
 
 func (s *Storage) NextToken() (string, error) {
-	token := strconv.FormatUint(s.rnd.Uint64(), 10)
-	return token, nil
+	entropy := make([]byte, tokenEntropyBytes)
+
+	if _, err := io.ReadFull(s.random, entropy); err != nil {
+		return "", err
+	}
+
+	return base64.RawURLEncoding.EncodeToString(entropy), nil
 }
 
 func (s *Storage) Close() {
@@ -97,19 +103,24 @@ func (s *Storage) GenToken(bucket *bolt.Bucket) (string, error) {
 	for i := 0; i != 5; i += 1 {
 		if value, err := s.NextToken(); err != nil {
 			return "", err
-		} else if nested := bucket.Bucket([]byte(value)); nested == nil {
+		} else if existing := bucket.Get([]byte(value)); existing == nil {
 			return value, nil
 		}
 	}
 
-	return "", errors.New("could no generate new unique token")
+	return "", errors.New("could not generate new unique token")
 }
 
 func (s *Storage) InsertUser(user *User) (string, error) {
 	token := ""
 	err := s.db.Update(func(tx *bolt.Tx) error {
-		//  generate new key
+		userID := []byte(strconv.Itoa(user.Id))
 		index := tx.Bucket(indexName)
+		revIndex := tx.Bucket(revIndexName)
+		previousToken := append([]byte(nil), revIndex.Get(userID)...)
+
+		//  Generate the replacement while the previous token is still in the
+		//  index, so it cannot be selected again after rotation.
 
 		if value, err := s.GenToken(index); err != nil {
 			return err
@@ -118,7 +129,6 @@ func (s *Storage) InsertUser(user *User) (string, error) {
 		}
 
 		//  insert user in token -> user index
-		user_id := strconv.Itoa(user.Id)
 		userToken := &UserToken{User: *user}
 
 		if bytes, err := userToken.UserTokenEncode(); err != nil {
@@ -127,11 +137,14 @@ func (s *Storage) InsertUser(user *User) (string, error) {
 			return err
 		}
 
-		//  insert reference user -> token
-		revIndex := tx.Bucket(revIndexName)
-
-		if err := revIndex.Put([]byte(user_id), []byte(token)); err != nil {
+		//  Replace the user -> token reference and remove the previous forward
+		//  entry in the same transaction. This keeps one token record per user.
+		if err := revIndex.Put(userID, []byte(token)); err != nil {
 			return err
+		}
+
+		if previousToken != nil {
+			return index.Delete(previousToken)
 		}
 
 		return nil
@@ -139,22 +152,38 @@ func (s *Storage) InsertUser(user *User) (string, error) {
 	return token, err
 }
 
+func activeUserToken(tx *bolt.Tx, token string) (*UserToken, error) {
+	value := tx.Bucket(indexName).Get([]byte(token))
+
+	if value == nil {
+		return nil, errors.New("unknown token")
+	}
+
+	userToken, err := UserTokenDecode(value)
+	if err != nil {
+		return nil, err
+	}
+
+	userID := []byte(strconv.Itoa(userToken.Id))
+	currentToken := tx.Bucket(revIndexName).Get(userID)
+	if !bytes.Equal(currentToken, []byte(token)) {
+		return nil, errors.New("unknown token")
+	}
+
+	return userToken, nil
+}
+
 func (s *Storage) SelectUserBy(token string) (*User, error) {
 	user := new(User)
 	err := s.db.View(func(tx *bolt.Tx) error {
-		bytes := tx.Bucket(indexName).Get([]byte(token))
-
-		if bytes == nil {
+		userToken, err := activeUserToken(tx, token)
+		if err != nil {
 			user = nil
-			return errors.New("unknown token")
+			return err
 		}
 
-		if val, err := UserTokenDecode(bytes); err != nil {
-			return err
-		} else {
-			user = &val.User
-			return nil
-		}
+		user = &userToken.User
+		return nil
 	})
 	return user, err
 }
@@ -175,7 +204,7 @@ func (s *Storage) SelectTokenBy(user *User) (string, error) {
 	return token, err
 }
 
-//  RevokeTokenBy revokes access token and implicitly update user info.
+// RevokeTokenBy revokes access token and implicitly update user info.
 func (s *Storage) RevokeTokenBy(user *User) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		user_id := strconv.Itoa(user.Id)
@@ -198,22 +227,17 @@ func (s *Storage) RevokeTokenBy(user *User) error {
 	})
 }
 
-//  IsTokenRevokedBy test whether access token was revoked.
+// IsTokenRevokedBy test whether access token was revoked.
 func (s *Storage) IsTokenRevokedBy(token string) (bool, error) {
 	revoked := true
 	err := s.db.View(func(tx *bolt.Tx) error {
-		bytes := tx.Bucket(indexName).Get([]byte(token))
-
-		if bytes == nil {
-			return errors.New("unknown user")
-		}
-
-		if ut, err := UserTokenDecode(bytes); err != nil {
+		userToken, err := activeUserToken(tx, token)
+		if err != nil {
 			return err
-		} else {
-			revoked = ut.IsTokenRevoked
-			return nil
 		}
+
+		revoked = userToken.IsTokenRevoked
+		return nil
 	})
 	return revoked, err
 }
