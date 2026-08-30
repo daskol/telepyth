@@ -20,6 +20,7 @@ type Config struct {
 }
 
 func main() {
+	addr := flag.String("addr", ":8080", "Interface to listen.")
 	configPath := flag.String("config", "", "Path to toml config file.")
 	metricsLog := flag.String("metrics-log", "metrics.tsv",
 		"Tab-separated values.")
@@ -71,6 +72,7 @@ func main() {
 	log.Fatal((&srv.TelePyth{
 		Api:        api,
 		Storage:    storage,
+		Addr:       *addr,
 		Polling:    !*disablePolling,
 		Timeout:    30,
 		MetricsLog: *metricsLog,

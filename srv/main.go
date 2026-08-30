@@ -21,6 +21,7 @@ type TelePyth struct {
 	Api     *TelegramBotApi
 	Storage *Storage
 
+	Addr    string
 	Polling bool
 	Timeout int
 
@@ -35,7 +36,6 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 		log.Println(update.Message.From.Id, "send /start")
 		EnqueueLogRecord(update.Message.From.Id, "/start")
 		token, err := t.Storage.InsertUser(&update.Message.From)
-
 		if err != nil {
 			//  TODO: log error and ask try again
 			log.Println(err)
@@ -47,7 +47,6 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 			Text:      "Your access token is `" + token + "`.",
 			ParseMode: "Markdown",
 		}).To(t.Api)
-
 		if err != nil {
 			log.Println("error: ", err)
 		}
@@ -55,7 +54,6 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 		log.Println(update.Message.From.Id, "send /last")
 		EnqueueLogRecord(update.Message.From.Id, "/last")
 		token, err := t.Storage.SelectTokenBy(&update.Message.From)
-
 		if err != nil {
 			log.Println(err)
 			return
@@ -70,7 +68,6 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 					"Send /start to issue new one.",
 				ParseMode: "Markdown",
 			}).To(t.Api)
-
 			if err != nil {
 				log.Println("error: ", err)
 			}
@@ -80,7 +77,6 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 				Text:      "Your last valid token is `" + token + "`.",
 				ParseMode: "Markdown",
 			}).To(t.Api)
-
 			if err != nil {
 				log.Println("error: ", err)
 			}
@@ -99,7 +95,6 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 			Text: "Token is already revoked. " +
 				"Send /start to obtain new token.",
 		}).To(t.Api)
-
 		if err != nil {
 			log.Println("error: ", err)
 		}
@@ -111,7 +106,6 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 			Text:      helpMessage,
 			ParseMode: "Markdown",
 		}).To(t.Api)
-
 		if err != nil {
 			log.Println("error: ", err)
 		}
@@ -122,7 +116,6 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 			ChatId: update.Message.From.Id,
 			Text:   "Unknown command. Try /help to see usage details.",
 		}).To(t.Api)
-
 		if err != nil {
 			log.Println("error: ", err)
 		}
@@ -146,7 +139,6 @@ func (t *TelePyth) FindUser(req *http.Request) (*User, int) {
 
 	// get user by token
 	user, err := t.Storage.SelectUserBy(token)
-
 	if err != nil {
 		return nil, http.StatusNotFound
 	}
@@ -201,7 +193,6 @@ func (t *TelePyth) HandlePlainTextNotifyRequest(w http.ResponseWriter, req *http
 
 	// extract message text
 	bytes, err := ioutil.ReadAll(req.Body)
-
 	if err != nil {
 		return http.StatusInternalServerError
 	}
@@ -212,7 +203,6 @@ func (t *TelePyth) HandlePlainTextNotifyRequest(w http.ResponseWriter, req *http
 		Text:      string(bytes),
 		ParseMode: "Markdown",
 	}).To(t.Api)
-
 	if err != nil {
 		return http.StatusServiceUnavailable
 	}
@@ -248,7 +238,6 @@ func (t *TelePyth) HandleMultipartNotifyRequest(w http.ResponseWriter, req *http
 	}
 
 	file, err := figure[0].Open()
-
 	if err != nil {
 		return http.StatusInternalServerError
 	}
@@ -258,7 +247,6 @@ func (t *TelePyth) HandleMultipartNotifyRequest(w http.ResponseWriter, req *http
 		Photo:   file,
 		Caption: caption,
 	}).To(t.Api)
-
 	if err != nil {
 		return http.StatusServiceUnavailable
 	}
@@ -286,7 +274,6 @@ func (t *TelePyth) PollUpdates() {
 
 	for {
 		updates, err := t.Api.GetUpdates(offset, 100, t.Timeout, nil)
-
 		if err != nil {
 			//  TODO: more logging
 			log.Println(err)
@@ -322,12 +309,16 @@ func (t *TelePyth) Serve() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/notify/", t.HandleNotifyRequest)
 	mux.HandleFunc("/api/ping/", t.HandlePingRequest)
-	mux.HandleFunc("/api/webhook/"+t.Api.GetToken(), t.HandleWebhookRequest)
 
-	srv := http.Server{
-		Addr:    ":8080",
-		Handler: mux,
+	// Enable WebHook handler.
+	if !t.Polling {
+		mux.HandleFunc("/api/webhook/"+t.Api.GetToken(), t.HandleWebhookRequest)
 	}
 
+	if t.Addr == "" {
+		t.Addr = ":8080"
+	}
+	log.Printf("serve on %s", t.Addr)
+	srv := http.Server{Addr: t.Addr, Handler: mux}
 	return srv.ListenAndServe()
 }
