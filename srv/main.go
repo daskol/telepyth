@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/daskol/telepyth/pkg/api/telegram/bot"
 )
 
 const helpMessage = `@telepyth\_bot is Telegram notifications in Python.
@@ -18,7 +20,7 @@ const helpMessage = `@telepyth\_bot is Telegram notifications in Python.
 See source code and more examples on [github page](https://github.com/daskol/telepyth).`
 
 type TelePyth struct {
-	Api     *TelegramBotApi
+	Api     *bot.TelegramBotApi
 	Storage *Storage
 
 	Addr    string
@@ -28,7 +30,7 @@ type TelePyth struct {
 	MetricsLog string
 }
 
-func (t *TelePyth) HandleTelegramUpdate(update *Update) {
+func (t *TelePyth) HandleTelegramUpdate(update *bot.Update) {
 	log.Println("update from", update.Message.From.Id)
 
 	switch update.Message.Text {
@@ -42,7 +44,7 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 			return
 		}
 
-		err = (&SendMessage{
+		err = (&bot.SendMessage{
 			ChatId:    update.Message.From.Id,
 			Text:      "Your access token is `" + token + "`.",
 			ParseMode: "Markdown",
@@ -62,7 +64,7 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 		if revoked, err := t.Storage.IsTokenRevokedBy(token); err != nil {
 			log.Println("error: ", err)
 		} else if revoked {
-			err = (&SendMessage{
+			err = (&bot.SendMessage{
 				ChatId: update.Message.From.Id,
 				Text: "You do not have any valid token. " +
 					"Send /start to issue new one.",
@@ -72,7 +74,7 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 				log.Println("error: ", err)
 			}
 		} else {
-			err = (&SendMessage{
+			err = (&bot.SendMessage{
 				ChatId:    update.Message.From.Id,
 				Text:      "Your last valid token is `" + token + "`.",
 				ParseMode: "Markdown",
@@ -90,7 +92,7 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 			return
 		}
 
-		err := (&SendMessage{
+		err := (&bot.SendMessage{
 			ChatId: update.Message.From.Id,
 			Text: "Token is already revoked. " +
 				"Send /start to obtain new token.",
@@ -101,7 +103,7 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 	case "/help":
 		log.Println(update.Message.From.Id, "send /help")
 		EnqueueLogRecord(update.Message.From.Id, "/help")
-		err := (&SendMessage{
+		err := (&bot.SendMessage{
 			ChatId:    update.Message.From.Id,
 			Text:      helpMessage,
 			ParseMode: "Markdown",
@@ -112,7 +114,7 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 	default:
 		log.Println(update.Message.From.Id, "send unknown command")
 		EnqueueLogRecord(update.Message.From.Id, "<unknown>")
-		err := (&SendMessage{
+		err := (&bot.SendMessage{
 			ChatId: update.Message.From.Id,
 			Text:   "Unknown command. Try /help to see usage details.",
 		}).To(t.Api)
@@ -122,7 +124,7 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 	}
 }
 
-func (t *TelePyth) FindUser(req *http.Request) (*User, int) {
+func (t *TelePyth) FindUser(req *http.Request) (*bot.User, int) {
 	// split string to extract token
 	token := strings.TrimPrefix(req.RequestURI, "/api/notify/")
 
@@ -198,7 +200,7 @@ func (t *TelePyth) HandlePlainTextNotifyRequest(w http.ResponseWriter, req *http
 	}
 
 	// send notification to user
-	err = (&SendMessage{
+	err = (&bot.SendMessage{
 		ChatId:    user.Id,
 		Text:      string(bytes),
 		ParseMode: "Markdown",
@@ -242,7 +244,7 @@ func (t *TelePyth) HandleMultipartNotifyRequest(w http.ResponseWriter, req *http
 		return http.StatusInternalServerError
 	}
 
-	err = (&SendPhoto{
+	err = (&bot.SendPhoto{
 		ChatId:  user.Id,
 		Photo:   file,
 		Caption: caption,

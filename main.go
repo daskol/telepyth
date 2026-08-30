@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/BurntSushi/toml"
+	"github.com/daskol/telepyth/pkg/api/telegram/bot"
 	"github.com/daskol/telepyth/srv"
 )
 
@@ -57,7 +58,7 @@ func main() {
 	}
 
 	log.Println("use token " + config.Token)
-	api := srv.New(config.Token)
+	api := bot.New(config.Token)
 
 	if me, err := api.GetMe(); err != nil {
 		log.Fatal("exit: ", err)

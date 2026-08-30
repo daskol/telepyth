@@ -1,4 +1,4 @@
-package srv
+package bot
 
 import (
 	"bytes"
@@ -71,7 +71,6 @@ func (t *TelegramBotApi) GetToken() string {
 func (t *TelegramBotApi) GetMe() (*User, error) {
 	url := "https://api.telegram.org/bot" + t.token + "/getMe"
 	res, err := http.Post(url, "application/json", nil)
-
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +100,6 @@ func (t *TelegramBotApi) GetUpdates(offset, limit, timeout int, allowedUpdates [
 
 	url := "https://api.telegram.org/bot" + t.token + "/getUpdates"
 	res, err := http.Post(url, "application/json", content)
-
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +141,6 @@ func (s *SendMessage) To(t *TelegramBotApi) error {
 
 	url := "https://api.telegram.org/bot" + t.token + "/sendMessage"
 	res, err := http.Post(url, "application/json", content)
-
 	if err != nil {
 		return err
 	}
@@ -211,7 +208,6 @@ func (s *SendPhoto) NewTo(t *TelegramBotApi) error {
 	}
 
 	photo, err := w.CreateFormFile("photo", "figure.png")
-
 	if err != nil {
 		return err
 	}
@@ -228,7 +224,6 @@ func (s *SendPhoto) NewTo(t *TelegramBotApi) error {
 
 	url := "https://api.telegram.org/bot" + t.token + "/sendPhoto"
 	req, err := http.NewRequest("POST", url, &b)
-
 	if err != nil {
 		return nil
 	}
@@ -236,7 +231,6 @@ func (s *SendPhoto) NewTo(t *TelegramBotApi) error {
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	cli := &http.Client{}
 	res, err := cli.Do(req)
-
 	if err != nil {
 		return err
 	}
