@@ -26,6 +26,7 @@ func main() {
 	metricsLog := flag.String("metrics-log", "metrics.tsv",
 		"Tab-separated values.")
 	token := flag.String("token", os.Getenv("TELEPYTH_TELEGRAM_BOT_TOKEN"), "A unique authentication token.")
+	externalEndpoint := flag.String("external-endpoint", os.Getenv("TELEPYTH_EXTERNAL_ENDPOINT"), "External public endpoint.")
 	dbPath := flag.String("database", "bolt.db",
 		"Create or open a database at the given path.")
 	disablePolling := flag.Bool("disable-polling", false, "Use long polling to get updates")
@@ -74,6 +75,7 @@ func main() {
 		Api:        api,
 		Storage:    storage,
 		Addr:       *addr,
+		Endpoint:   *externalEndpoint,
 		Polling:    !*disablePolling,
 		Timeout:    30,
 		MetricsLog: *metricsLog,

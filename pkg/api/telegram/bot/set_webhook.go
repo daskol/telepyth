@@ -6,13 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	"net"
 	"net/http"
 
 	"github.com/cenkalti/backoff/v5"
 )
 
-const TelegramBotEndpoint = `https://api.telegram.org/bot/%s/%s`
+const TelegramBotEndpoint = `https://api.telegram.org/bot%s/%s`
 
 func renderEndpoint(token, method string) string {
 	return fmt.Sprintf(TelegramBotEndpoint, token, method)
@@ -68,15 +70,19 @@ func request[T any](ctx context.Context, client *http.Client, token, method stri
 		}
 
 		if dur := bo.NextBackOff(); dur != backoff.Stop {
-			return result, fmt.Errorf("%w: %s", ErrBadRequest, method)
+			return result, fmt.Errorf("%w: %s: retries", ErrBadRequest, method)
 		}
 	}
+
+	buf.Reset()
+	io.Copy(&buf, res.Body)
+	log.Printf("setWebhook: %s", buf.String())
 
 	if res.StatusCode != http.StatusOK {
 		return result, fmt.Errorf("%w: %s", ErrBadRequest, method)
 	}
 
-	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(&buf).Decode(&result); err != nil {
 		return result, fmt.Errorf("%w: %s: %w", ErrBadRequest, method, err)
 	}
 	return result, nil
