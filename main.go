@@ -2,9 +2,11 @@ package main
 
 import (
 	"flag"
+	"log"
+	"os"
+
 	"github.com/BurntSushi/toml"
 	"github.com/daskol/telepyth/srv"
-	"log"
 )
 
 var storage *srv.Storage
@@ -21,10 +23,10 @@ func main() {
 	configPath := flag.String("config", "", "Path to toml config file.")
 	metricsLog := flag.String("metrics-log", "metrics.tsv",
 		"Tab-separated values.")
-	token := flag.String("token", "", "A unique authentication token.")
+	token := flag.String("token", os.Getenv("TELEPYTH_TELEGRAM_BOT_TOKEN"), "A unique authentication token.")
 	dbPath := flag.String("database", "bolt.db",
 		"Create or open a database at the given path.")
-	polling := flag.Bool("polling", false, "Use long polling to get updates")
+	disablePolling := flag.Bool("disable-polling", false, "Use long polling to get updates")
 	timeout := flag.Int("timeout", 30, "Timeout in seconds for long polling.")
 
 	flag.Parse()
@@ -32,7 +34,7 @@ func main() {
 	config := &Config{
 		Token:      *token,
 		Storage:    *dbPath,
-		Polling:    *polling,
+		Polling:    !*disablePolling,
 		Timeout:    *timeout,
 		MetricsLog: *metricsLog,
 	}
@@ -69,7 +71,7 @@ func main() {
 	log.Fatal((&srv.TelePyth{
 		Api:        api,
 		Storage:    storage,
-		Polling:    true,
+		Polling:    !*disablePolling,
 		Timeout:    30,
 		MetricsLog: *metricsLog,
 	}).Serve())
