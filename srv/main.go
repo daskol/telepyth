@@ -1,10 +1,13 @@
 package srv
 
 import (
+	"context"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
+	"time"
 
 	"github.com/daskol/telepyth/pkg/api/telegram/bot"
 )
@@ -23,9 +26,10 @@ type TelePyth struct {
 	Api     *bot.TelegramBotApi
 	Storage *Storage
 
-	Addr    string
-	Polling bool
-	Timeout int
+	Addr     string
+	Endpoint string // External (public) endpoint.
+	Polling  bool
+	Timeout  int
 
 	MetricsLog string
 }
@@ -321,6 +325,38 @@ func (t *TelePyth) Serve() error {
 		t.Addr = ":8080"
 	}
 	log.Printf("serve on %s", t.Addr)
+
+	// Enable WebHook handler.
+	if !t.Polling {
+		ctx := context.Background()
+		go t.registerWebhook(ctx, t.Addr)
+	}
+
 	srv := http.Server{Addr: t.Addr, Handler: mux}
 	return srv.ListenAndServe()
+}
+
+func (t *TelePyth) registerWebhook(ctx context.Context, addr string) {
+	u, err := url.Parse(t.Endpoint)
+	if err != nil {
+		log.Printf("failed to parse public endpoint: %s", err)
+		return
+	}
+	u.Path, err = url.JoinPath(u.Path, "api/webhook", t.Api.GetToken())
+	if err != nil {
+		log.Printf("failed to prepare webhook url: %s", err)
+		return
+	}
+
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(3 * time.Second):
+		err := t.Api.SetWebhook(ctx, bot.SetWebhook{URL: u.String()})
+		if err != nil {
+			log.Printf("failed to set webhook: %s", err)
+			return
+		}
+		log.Printf("webhook is set")
+	}
 }
