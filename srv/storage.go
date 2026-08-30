@@ -6,9 +6,10 @@ import (
 	"encoding/base64"
 	"encoding/gob"
 	"errors"
-	"github.com/boltdb/bolt"
 	"io"
 	"strconv"
+
+	"github.com/boltdb/bolt"
 )
 
 const tokenEntropyBytes = 32
@@ -45,7 +46,8 @@ func (u *UserToken) UserTokenEncode() ([]byte, error) {
 	}
 }
 
-var indexName []byte = []byte("index")        // index token -> user
+var indexName []byte = []byte("index") // index token -> user
+
 var revIndexName []byte = []byte("rev-index") // inverted index user -> token
 
 // Storage stores persistently information about users and tokens. It is
@@ -56,8 +58,7 @@ type Storage struct {
 }
 
 func NewStorage(path string) (*Storage, error) {
-	db, err := bolt.Open(path, 0600, nil)
-
+	db, err := bolt.Open(path, 0o600, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -85,11 +86,9 @@ func NewStorage(path string) (*Storage, error) {
 
 func (s *Storage) NextToken() (string, error) {
 	entropy := make([]byte, tokenEntropyBytes)
-
 	if _, err := io.ReadFull(s.random, entropy); err != nil {
 		return "", err
 	}
-
 	return base64.RawURLEncoding.EncodeToString(entropy), nil
 }
 
@@ -121,7 +120,6 @@ func (s *Storage) InsertUser(user *User) (string, error) {
 
 		//  Generate the replacement while the previous token is still in the
 		//  index, so it cannot be selected again after rotation.
-
 		if value, err := s.GenToken(index); err != nil {
 			return err
 		} else {
@@ -152,9 +150,23 @@ func (s *Storage) InsertUser(user *User) (string, error) {
 	return token, err
 }
 
+func (s *Storage) SelectUserBy(token string) (*User, error) {
+	user := new(User)
+	err := s.db.View(func(tx *bolt.Tx) error {
+		userToken, err := activeUserToken(tx, token)
+		if err != nil {
+			user = nil
+			return err
+		}
+
+		user = &userToken.User
+		return nil
+	})
+	return user, err
+}
+
 func activeUserToken(tx *bolt.Tx, token string) (*UserToken, error) {
 	value := tx.Bucket(indexName).Get([]byte(token))
-
 	if value == nil {
 		return nil, errors.New("unknown token")
 	}
@@ -169,23 +181,7 @@ func activeUserToken(tx *bolt.Tx, token string) (*UserToken, error) {
 	if !bytes.Equal(currentToken, []byte(token)) {
 		return nil, errors.New("unknown token")
 	}
-
 	return userToken, nil
-}
-
-func (s *Storage) SelectUserBy(token string) (*User, error) {
-	user := new(User)
-	err := s.db.View(func(tx *bolt.Tx) error {
-		userToken, err := activeUserToken(tx, token)
-		if err != nil {
-			user = nil
-			return err
-		}
-
-		user = &userToken.User
-		return nil
-	})
-	return user, err
 }
 
 func (s *Storage) SelectTokenBy(user *User) (string, error) {
