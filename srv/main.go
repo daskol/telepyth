@@ -2,6 +2,7 @@ package srv
 
 import (
 	"context"
+	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -155,7 +156,21 @@ func (t *TelePyth) FindUser(req *http.Request) (*bot.User, int) {
 }
 
 func (t *TelePyth) HandleWebhookRequest(w http.ResponseWriter, req *http.Request) {
-	log.Println("HandleWebhookRequest(): not implemented!")
+	if req.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	update := new(bot.Update)
+	if err := json.NewDecoder(req.Body).Decode(update); err != nil {
+		log.Printf("failed to decode Telegram update: %s", err)
+		http.Error(w, "invalid Telegram update", http.StatusBadRequest)
+		return
+	}
+
+	t.HandleTelegramUpdate(update)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (t *TelePyth) HandleNotifyRequest(w http.ResponseWriter, req *http.Request) {
