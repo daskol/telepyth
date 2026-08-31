@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/boltdb/bolt"
+	"github.com/daskol/telepyth/pkg/api/telegram/bot"
 )
 
 const tokenEntropyBytes = 32
@@ -17,7 +18,7 @@ const tokenEntropyBytes = 32
 // UserToken represents Telegram user and some system information used to
 // validate and revoke tokens.
 type UserToken struct {
-	User
+	bot.User
 
 	IsTokenRevoked bool
 }
@@ -110,7 +111,7 @@ func (s *Storage) GenToken(bucket *bolt.Bucket) (string, error) {
 	return "", errors.New("could not generate new unique token")
 }
 
-func (s *Storage) InsertUser(user *User) (string, error) {
+func (s *Storage) InsertUser(user *bot.User) (string, error) {
 	token := ""
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		userID := []byte(strconv.Itoa(user.Id))
@@ -150,8 +151,8 @@ func (s *Storage) InsertUser(user *User) (string, error) {
 	return token, err
 }
 
-func (s *Storage) SelectUserBy(token string) (*User, error) {
-	user := new(User)
+func (s *Storage) SelectUserBy(token string) (*bot.User, error) {
+	user := new(bot.User)
 	err := s.db.View(func(tx *bolt.Tx) error {
 		userToken, err := activeUserToken(tx, token)
 		if err != nil {
@@ -184,7 +185,7 @@ func activeUserToken(tx *bolt.Tx, token string) (*UserToken, error) {
 	return userToken, nil
 }
 
-func (s *Storage) SelectTokenBy(user *User) (string, error) {
+func (s *Storage) SelectTokenBy(user *bot.User) (string, error) {
 	token := ""
 	err := s.db.View(func(tx *bolt.Tx) error {
 		user_id := strconv.Itoa(user.Id)
@@ -201,7 +202,7 @@ func (s *Storage) SelectTokenBy(user *User) (string, error) {
 }
 
 // RevokeTokenBy revokes access token and implicitly update user info.
-func (s *Storage) RevokeTokenBy(user *User) error {
+func (s *Storage) RevokeTokenBy(user *bot.User) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		user_id := strconv.Itoa(user.Id)
 		revIndex := tx.Bucket(revIndexName)

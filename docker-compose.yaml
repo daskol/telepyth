@@ -1,0 +1,21 @@
+services:
+  telepyth:
+    image: 'ghcr.io/daskol/telepyth:latest'
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:6060:8080'  # HTTP
+    environment:
+      TELEPYTH_EXTERNAL_ENDPOINT: '${TELEPYTH_EXTERNAL_ENDPOINT}'
+      TELEPYTH_TELEGRAM_BOT_TOKEN: '${TELEPYTH_TELEGRAM_BOT_TOKEN}'
+    volumes:
+      - data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "http://127.0.0.1:8080/api/ping/"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  data:
+    driver: local

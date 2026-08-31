@@ -1,10 +1,16 @@
 package srv
 
 import (
+	"context"
+	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
+	"time"
+
+	"github.com/daskol/telepyth/pkg/api/telegram/bot"
 )
 
 const helpMessage = `@telepyth\_bot is Telegram notifications in Python.
@@ -18,16 +24,18 @@ const helpMessage = `@telepyth\_bot is Telegram notifications in Python.
 See source code and more examples on [github page](https://github.com/daskol/telepyth).`
 
 type TelePyth struct {
-	Api     *TelegramBotApi
+	Api     *bot.TelegramBotApi
 	Storage *Storage
 
-	Polling bool
-	Timeout int
+	Addr     string
+	Endpoint string // External (public) endpoint.
+	Polling  bool
+	Timeout  int
 
 	MetricsLog string
 }
 
-func (t *TelePyth) HandleTelegramUpdate(update *Update) {
+func (t *TelePyth) HandleTelegramUpdate(update *bot.Update) {
 	log.Println("update from", update.Message.From.Id)
 
 	switch update.Message.Text {
@@ -35,19 +43,17 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 		log.Println(update.Message.From.Id, "send /start")
 		EnqueueLogRecord(update.Message.From.Id, "/start")
 		token, err := t.Storage.InsertUser(&update.Message.From)
-
 		if err != nil {
 			//  TODO: log error and ask try again
 			log.Println(err)
 			return
 		}
 
-		err = (&SendMessage{
+		err = (&bot.SendMessage{
 			ChatId:    update.Message.From.Id,
 			Text:      "Your access token is `" + token + "`.",
 			ParseMode: "Markdown",
 		}).To(t.Api)
-
 		if err != nil {
 			log.Println("error: ", err)
 		}
@@ -55,7 +61,6 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 		log.Println(update.Message.From.Id, "send /last")
 		EnqueueLogRecord(update.Message.From.Id, "/last")
 		token, err := t.Storage.SelectTokenBy(&update.Message.From)
-
 		if err != nil {
 			log.Println(err)
 			return
@@ -64,23 +69,21 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 		if revoked, err := t.Storage.IsTokenRevokedBy(token); err != nil {
 			log.Println("error: ", err)
 		} else if revoked {
-			err = (&SendMessage{
+			err = (&bot.SendMessage{
 				ChatId: update.Message.From.Id,
 				Text: "You do not have any valid token. " +
 					"Send /start to issue new one.",
 				ParseMode: "Markdown",
 			}).To(t.Api)
-
 			if err != nil {
 				log.Println("error: ", err)
 			}
 		} else {
-			err = (&SendMessage{
+			err = (&bot.SendMessage{
 				ChatId:    update.Message.From.Id,
 				Text:      "Your last valid token is `" + token + "`.",
 				ParseMode: "Markdown",
 			}).To(t.Api)
-
 			if err != nil {
 				log.Println("error: ", err)
 			}
@@ -94,42 +97,39 @@ func (t *TelePyth) HandleTelegramUpdate(update *Update) {
 			return
 		}
 
-		err := (&SendMessage{
+		err := (&bot.SendMessage{
 			ChatId: update.Message.From.Id,
 			Text: "Token is already revoked. " +
 				"Send /start to obtain new token.",
 		}).To(t.Api)
-
 		if err != nil {
 			log.Println("error: ", err)
 		}
 	case "/help":
 		log.Println(update.Message.From.Id, "send /help")
 		EnqueueLogRecord(update.Message.From.Id, "/help")
-		err := (&SendMessage{
+		err := (&bot.SendMessage{
 			ChatId:    update.Message.From.Id,
 			Text:      helpMessage,
 			ParseMode: "Markdown",
 		}).To(t.Api)
-
 		if err != nil {
 			log.Println("error: ", err)
 		}
 	default:
 		log.Println(update.Message.From.Id, "send unknown command")
 		EnqueueLogRecord(update.Message.From.Id, "<unknown>")
-		err := (&SendMessage{
+		err := (&bot.SendMessage{
 			ChatId: update.Message.From.Id,
 			Text:   "Unknown command. Try /help to see usage details.",
 		}).To(t.Api)
-
 		if err != nil {
 			log.Println("error: ", err)
 		}
 	}
 }
 
-func (t *TelePyth) FindUser(req *http.Request) (*User, int) {
+func (t *TelePyth) FindUser(req *http.Request) (*bot.User, int) {
 	// split string to extract token
 	token := strings.TrimPrefix(req.RequestURI, "/api/notify/")
 
@@ -146,7 +146,6 @@ func (t *TelePyth) FindUser(req *http.Request) (*User, int) {
 
 	// get user by token
 	user, err := t.Storage.SelectUserBy(token)
-
 	if err != nil {
 		return nil, http.StatusNotFound
 	}
@@ -157,7 +156,21 @@ func (t *TelePyth) FindUser(req *http.Request) (*User, int) {
 }
 
 func (t *TelePyth) HandleWebhookRequest(w http.ResponseWriter, req *http.Request) {
-	log.Println("HandleWebhookRequest(): not implemented!")
+	if req.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	update := new(bot.Update)
+	if err := json.NewDecoder(req.Body).Decode(update); err != nil {
+		log.Printf("failed to decode Telegram update: %s", err)
+		http.Error(w, "invalid Telegram update", http.StatusBadRequest)
+		return
+	}
+
+	t.HandleTelegramUpdate(update)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (t *TelePyth) HandleNotifyRequest(w http.ResponseWriter, req *http.Request) {
@@ -201,18 +214,16 @@ func (t *TelePyth) HandlePlainTextNotifyRequest(w http.ResponseWriter, req *http
 
 	// extract message text
 	bytes, err := ioutil.ReadAll(req.Body)
-
 	if err != nil {
 		return http.StatusInternalServerError
 	}
 
 	// send notification to user
-	err = (&SendMessage{
+	err = (&bot.SendMessage{
 		ChatId:    user.Id,
 		Text:      string(bytes),
 		ParseMode: "Markdown",
 	}).To(t.Api)
-
 	if err != nil {
 		return http.StatusServiceUnavailable
 	}
@@ -248,17 +259,15 @@ func (t *TelePyth) HandleMultipartNotifyRequest(w http.ResponseWriter, req *http
 	}
 
 	file, err := figure[0].Open()
-
 	if err != nil {
 		return http.StatusInternalServerError
 	}
 
-	err = (&SendPhoto{
+	err = (&bot.SendPhoto{
 		ChatId:  user.Id,
 		Photo:   file,
 		Caption: caption,
 	}).To(t.Api)
-
 	if err != nil {
 		return http.StatusServiceUnavailable
 	}
@@ -286,7 +295,6 @@ func (t *TelePyth) PollUpdates() {
 
 	for {
 		updates, err := t.Api.GetUpdates(offset, 100, t.Timeout, nil)
-
 		if err != nil {
 			//  TODO: more logging
 			log.Println(err)
@@ -322,12 +330,48 @@ func (t *TelePyth) Serve() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/notify/", t.HandleNotifyRequest)
 	mux.HandleFunc("/api/ping/", t.HandlePingRequest)
-	mux.HandleFunc("/api/webhook/"+t.Api.GetToken(), t.HandleWebhookRequest)
 
-	srv := http.Server{
-		Addr:    ":8080",
-		Handler: mux,
+	// Enable WebHook handler.
+	if !t.Polling {
+		mux.HandleFunc("/api/webhook/"+t.Api.GetToken(), t.HandleWebhookRequest)
 	}
 
+	if t.Addr == "" {
+		t.Addr = ":8080"
+	}
+	log.Printf("serve on %s", t.Addr)
+
+	// Enable WebHook handler.
+	if !t.Polling {
+		ctx := context.Background()
+		go t.registerWebhook(ctx, t.Addr)
+	}
+
+	srv := http.Server{Addr: t.Addr, Handler: mux}
 	return srv.ListenAndServe()
+}
+
+func (t *TelePyth) registerWebhook(ctx context.Context, addr string) {
+	u, err := url.Parse(t.Endpoint)
+	if err != nil {
+		log.Printf("failed to parse public endpoint: %s", err)
+		return
+	}
+	u.Path, err = url.JoinPath(u.Path, "api/webhook", t.Api.GetToken())
+	if err != nil {
+		log.Printf("failed to prepare webhook url: %s", err)
+		return
+	}
+
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(3 * time.Second):
+		err := t.Api.SetWebhook(ctx, bot.SetWebhook{URL: u.String()})
+		if err != nil {
+			log.Printf("failed to set webhook: %s", err)
+			return
+		}
+		log.Printf("webhook is set")
+	}
 }
